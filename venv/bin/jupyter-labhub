@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/mnt/c/Users/nmenz/Documents/Projet perso/projet_trading_quantitatif/venv/bin/python3" "$0" "$@"
-' '''
+#!/home/nmenz/projets/projet_trading_quantitatif/venv/bin/python3
 import sys
 from jupyterlab.labhubapp import main
 if __name__ == '__main__':

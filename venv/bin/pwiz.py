@@ -1,4 +1,4 @@
-#!/mnt/c/Users/nmenz/Documents/Projet perso/projet_trading_quantitatif/venv/bin/python3
+#!/home/nmenz/projets/projet_trading_quantitatif/venv/bin/python3
 
 import datetime
 import os
