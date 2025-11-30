@@ -1,6 +1,6 @@
 """Module PairsSelector pour l'identification de paires corrélées et cointégrées."""
 
-import numpy as np
+
 import pandas as pd
 from scipy import stats
 from typing import List, Tuple
@@ -76,8 +76,8 @@ class PairsSelector:
         Returns:
             Liste de tuples (ticker_a, ticker_b) représentant toutes les paires
         """
-        pairs = combinations(tickers, 2) 
-        return list(pairs)
+        paires = combinations(tickers, 2) 
+        return list(paires)
     
 
     def filter_valid_pairs(self, pairs: List[Tuple[str, str, float, float]]) -> List[Tuple[str, str, float, float]]:
