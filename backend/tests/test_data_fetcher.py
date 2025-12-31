@@ -23,7 +23,7 @@ print(pair_data.head())
 print(f"Colonnes: {list(pair_data.columns)}")
 
 # Test 4 : Cache - Téléchargement
-print("\n--- Test 4 : Cache (téléchargeent) ---")
+print("\n--- Test 4 : Cache (téléchargement) ---")
 import time
 start = time.time()
 data1 = fetcher.get_cached_data("GOOGL", "2024-01-01", "2024-01-31")
