@@ -64,14 +64,7 @@ class TradingPipeline:
         self.config = config
     
     
-    def executer_backtest(
-        self, 
-        ticker_a: str, 
-        ticker_b: str, 
-        start_date: str, 
-        end_date: str,
-        appliquer_risk_management: bool = True
-    ) -> Dict[str, Any]:
+    def executer_backtest(self, ticker_a: str, ticker_b: str, start_date: str, end_date: str, appliquer_risk_management: bool = True) -> Dict[str, Any]:
         """
         Exécute un backtest complet sur une paire.
         
@@ -115,7 +108,7 @@ class TradingPipeline:
         df_trades = self.backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio_couverture)
         metriques = self.backtester.calculer_metriques(df_trades)
         
-        # 5. Gestion du risque (optionnel)
+        # 5. Gestion du risque
         df_risk = None
         metriques_risque = None
         

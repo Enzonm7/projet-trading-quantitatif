@@ -1,0 +1,16 @@
+# Ignorer l'environnement virtuel
+venv/
+env/
+.env
+
+# Ignorer les fichiers de données binaires / cache
+*.pkl
+
+# Ignorer les caches Python 
+__pycache__/
+*.py[cod]
+
+# Ignorer les fichiers système ou IDE 
+.DS_Store
+.vscode/
+.idea/

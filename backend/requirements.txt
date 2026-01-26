@@ -1,7 +1,7 @@
 # ===== DATA & FINANCE =====
 pandas==2.1.3
 numpy==1.26.2
-yfinance==0.2.32
+yfinance==0.2.66 # (fix bugs téléchargement)
 
 # ===== STATISTICS =====
 statsmodels==0.14.0
@@ -10,14 +10,27 @@ scipy==1.11.4
 # ===== VISUALIZATION =====
 matplotlib==3.8.2
 
-# ===== BACKEND (à installer plus tard) =====
-# fastapi==0.104.1
-# uvicorn[standard]==0.24.0
+# ===== BACKEND =====
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9  # PostgreSQL adapter
+alembic==1.13.1  # Database migrations
+python-dotenv==1.0.0  # Environment variables
 
-# ===== ML (à installer plus tard) =====
+# ===== ML (Phase 3 - Mars 2026) =====
 # scikit-learn==1.3.2
-# xgboost==2.0.2
+# xgboost==2.0.3
+# tensorflow==2.15.0 # Pour LSTM
+
+# ===== FRONTEND =====
+# requests==2.31.0  # HTTP requests pour tests API
 
 # ===== JUPYTER =====
 jupyter==1.0.0
+notebook==7.0.6
 ipykernel==6.27.1
+
+# ===== TESTING =====
+pytest==9.0.1
+pytest-cov==7.0.0
