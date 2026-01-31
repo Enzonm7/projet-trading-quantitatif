@@ -16,53 +16,22 @@ class TradingPipeline:
     DataFetcher → PairsSelector → Backtester → RiskManager
     """
     
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, fetcher, selector, backtester, risk_manager):
         """
         Initialise le pipeline avec configuration.
         
         Args:
-            config: Dictionnaire de configuration (optionnel)
-                {
-                    'capital_initial': 10000.0,
-                    'seuil_entree': 2.0,
-                    'seuil_sortie': 0.5,
-                    'correlation_threshold': 0.7,
-                    'pvalue_threshold': 0.05,
-                    'max_position_size': 0.1,
-                    'stop_loss_pct': 0.02,
-                    'max_leverage': 1.0,
-                    'cache_dir': './cache'
-                }
+            fetcher (DataFetcher): Instance responsable de la récupération des données.
+            selector (PairsSelector): Instance responsable de la sélection des paires.
+            backtester (Backtester): Instance responsable de l'exécution de la stratégie.
+            risk_manager (RiskManager): Instance responsable de la gestion du risque.
         """
-        # Configuration par défaut
-        if config is None:
-            config = {}
-        
-        # Initialisation des modules
-        self.fetcher = DataFetcher(
-            cache_dir=config.get('cache_dir', './cache')
-        )
-        
-        self.selector = PairsSelector(
-            correlation_threshold=config.get('correlation_threshold', 0.7),
-            pvalue_threshold=config.get('pvalue_threshold', 0.05)
-        )
-        
-        self.backtester = Backtester(
-            capital_initial=config.get('capital_initial', 10000.0),
-            seuil_entree=config.get('seuil_entree', 2.0),
-            seuil_sortie=config.get('seuil_sortie', 0.5)
-        )
-        
-        self.risk_manager = RiskManager(
-            max_position_size=config.get('max_position_size', 0.1),
-            stop_loss_pct=config.get('stop_loss_pct', 0.02),
-            max_leverage=config.get('max_leverage', 1.0)
-        )
-        
-        # Stocker la config
-        self.config = config
-    
+        # On stocke simplement les outils qu'on nous donne.
+        # Le Pipeline ne sait pas (et ne veut pas savoir) comment ils sont configurés.
+        self.fetcher = fetcher
+        self.selector = selector
+        self.backtester = backtester
+        self.risk_manager = risk_manager
     
     def executer_backtest(self, ticker_a: str, ticker_b: str, start_date: str, end_date: str, appliquer_risk_management: bool = True) -> Dict[str, Any]:
         """
