@@ -88,6 +88,7 @@ class ZScoreReversionStrategy(Strategy) :
             positions.append(position_actuelle)
 
         df_signaux['position'] = positions
+        df_signaux['spread'] = spread 
         df_signaux['ratio'] = ratio
         
         return df_signaux

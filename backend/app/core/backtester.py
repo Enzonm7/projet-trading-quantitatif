@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Tuple
-from app.core.strategies import Strategy
+from backend.app.core.strategies import Strategy
 
 
 class Backtester:
