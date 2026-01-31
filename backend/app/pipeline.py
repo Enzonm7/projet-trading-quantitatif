@@ -26,12 +26,11 @@ class TradingPipeline:
             backtester (Backtester): Instance responsable de l'exécution de la stratégie.
             risk_manager (RiskManager): Instance responsable de la gestion du risque.
         """
-        # On stocke simplement les outils qu'on nous donne.
-        # Le Pipeline ne sait pas (et ne veut pas savoir) comment ils sont configurés.
         self.fetcher = fetcher
         self.selector = selector
         self.backtester = backtester
         self.risk_manager = risk_manager
+
     
     def executer_backtest(self, ticker_a: str, ticker_b: str, start_date: str, end_date: str, appliquer_risk_management: bool = True) -> Dict[str, Any]:
         """
