@@ -6,7 +6,6 @@ from backend.app.core.data_fetcher import DataFetcher
 from backend.app.core.pairs_selector import PairsSelector
 from backend.app.core.backtester import Backtester
 from backend.app.core.risk_manager import RiskManager
-from scipy import stats
 from typing import Dict, Any
 
 
@@ -45,6 +44,7 @@ class TradingPipeline:
             
         Returns:
             Dictionnaire contenant:
+                - ticker_a, ticker_b: Tickers analysés
                 - pair_data: DataFrame des prix
                 - is_cointegrated: Bool de cointégration
                 - p_value: P-value du test ADF
@@ -65,30 +65,22 @@ class TradingPipeline:
         # 2. Validation de la paire (cointégration)
         is_cointegrated, p_value = self.selector.test_cointegration(prix_a, prix_b)
         
-        # 3. Calcul du ratio de couverture
-        slope, intercept = stats.linregress(prix_b, prix_a)[:2]
-        ratio_couverture = slope
+        # 3. Backtesting (DÉLÉGATION au Backtester)
+        resultats_backtest = self.backtester.executer_backtest(prix_a, prix_b)
         
-        # 4. Backtesting
-        spread = self.backtester.calculer_spread(prix_a, prix_b, ratio_couverture)
-        zscore = self.backtester.calculer_zscore(spread, window=20)
-        df_signaux = self.backtester.generer_signaux(zscore)
-        df_trades = self.backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio_couverture)
-        metriques = self.backtester.calculer_metriques(df_trades)
-        
-        # 5. Gestion du risque
+        # . Gestion du risque
         df_risk = None
         metriques_risque = None
         
         if appliquer_risk_management:
             df_risk = self.risk_manager.appliquer_gestion_risque(
-                df_trades,
+                resultats_backtest['df_trades'],
                 self.backtester.capital_initial,
                 prix_a,
                 prix_b
             )
             metriques_risque = self.risk_manager.calculer_metriques_risque(
-                df_trades,
+                resultats_backtest['df_trades'],
                 self.backtester.capital_initial
             )
         
@@ -99,13 +91,13 @@ class TradingPipeline:
             'pair_data': pair_data,
             'is_cointegrated': is_cointegrated,
             'p_value': p_value,
-            'ratio_couverture': ratio_couverture,
-            'spread': spread,
-            'zscore': zscore,
-            'df_signaux': df_signaux,
-            'df_trades': df_trades,
+            'ratio_couverture': resultats_backtest['ratio'],
+            'spread': resultats_backtest['df_signaux']['spread'],
+            'zscore': resultats_backtest['df_signaux']['zscore'],
+            'df_signaux': resultats_backtest['df_signaux'],
+            'df_trades': resultats_backtest['df_trades'],
             'df_risk': df_risk,
-            'metriques': metriques,
+            'metriques': resultats_backtest['metriques'],
             'metriques_risque': metriques_risque
         }
     
