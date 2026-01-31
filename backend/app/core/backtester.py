@@ -3,128 +3,59 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Tuple
+from app.core.strategies import Strategy
 
 
 class Backtester:
     """
     Classe responsable de la simulation de stratégies de pairs trading
     sur données historiques et du calcul des métriques de performance.
+    Le Backtester est un moteur d'exécution qui délègue la génération
+    des signaux à une Strategy injectée.
     """
     
-    def __init__(self, capital_initial: float = 10000.0, seuil_entree: float = 2.0, seuil_sortie: float = 0.5):
+    def __init__(self, strategy: Strategy, capital_initial: float = 10000.0):
         """
         Initialise le Backtester.
         
         Args:
+            strategy: Instance de Strategy pour générer les signaux
             capital_initial: Capital de départ en euros (défaut: 10000.0)
-            seuil_entree: Z-score pour entrée en position (défaut: 2.0)
-            seuil_sortie: Z-score pour sortie de position (défaut: 0.5)
         """
+        self.strategy = strategy
         self.capital_initial = capital_initial
-        self.seuil_entree = seuil_entree
-        self.seuil_sortie = seuil_sortie
+
     
-    
-    def calculer_spread(self, prix_a: pd.Series, prix_b: pd.Series, ratio: float) -> pd.Series:
+    def executer_backtest(self, prix_a: pd.Series, prix_b: pd.Series) -> Dict:
         """
-        Calcule le spread entre deux séries de prix.
-        
-        Le spread représente la différence entre le prix de l'action A
-        et le prix ajusté de l'action B selon le ratio de couverture.
+        Exécute un backtest complet sur une paire d'actions.
         
         Args:
             prix_a: Série de prix de l'action A
             prix_b: Série de prix de l'action B
-            ratio: Ratio de couverture (hedge ratio)
             
         Returns:
-            Série du spread calculé
+            Dictionnaire contenant:
+                - df_signaux: DataFrame des signaux générés
+                - df_trades: DataFrame des trades simulés
+                - metriques: Dictionnaire des métriques de performance
+                - ratio: Ratio de couverture utilisé
         """
-        if len(prix_a) != len(prix_b):
-            raise ValueError("Les séries de prix doivent avoir la même longueur")
-        
-        # Calcul du spread: Prix_A - ratio * Prix_B
-        spread = prix_a - ratio * prix_b
-        
-        return spread
-    
-    
-    def calculer_zscore(self, spread: pd.Series, window: int = 20) -> pd.Series:
-        """
-        Calcule le z-score du spread sur une fenêtre glissante.
-        
-        Le z-score mesure le nombre d'écarts-types du spread
-        par rapport à sa moyenne mobile.
-        
-        Args:
-            spread: Série du spread
-            window: Taille de la fenêtre glissante (défaut: 20 jours)
-            
-        Returns:
-            Série du z-score calculé
-        """
-        if window > len(spread):
-            raise ValueError(f"La fenêtre ({window}) ne peut pas être supérieure à la longueur du spread ({len(spread)})")
-        
-        # Calcul de la moyenne mobile
-        moyenne_mobile = spread.rolling(window=window).mean()
-        
-        # Calcul de l'écart-type mobile
-        ecart_type_mobile = spread.rolling(window=window).std()
-        
-        # Calcul du z-score: (spread - moyenne) / écart-type
-        zscore = (spread - moyenne_mobile) / ecart_type_mobile
-        
-        return zscore
-    
-    
-    def generer_signaux(self, zscore: pd.Series) -> pd.DataFrame:
-        """
-        Génère les signaux d'entrée et de sortie de position.
-        
-        Logique des signaux:
-        - Signal = 1 (LONG): Z-score < -seuil_entree → Acheter A, vendre B
-        - Signal = -1 (SHORT): Z-score > +seuil_entree → Vendre A, acheter B
-        - Signal = 0 (NEUTRE): |Z-score| < seuil_sortie → Sortir de position
-        
-        Args:
-            zscore: Série du z-score
-            
-        Returns:
-            DataFrame avec colonnes:
-                - zscore: Valeur du z-score
-                - signal: Signal de position (1, -1, ou 0)
-                - position: Position active (maintenue jusqu'au signal de sortie)
-        """
-        df_signaux = pd.DataFrame(index=zscore.index)
-        df_signaux['zscore'] = zscore
-        
-        # Initialisation des colonnes
-        df_signaux['signal'] = 0
-        df_signaux['position'] = 0
-        
-        # Génération des signaux
-        # LONG: Z-score très négatif (spread sous-évalué)
-        df_signaux.loc[zscore < -self.seuil_entree, 'signal'] = 1
-        
-        # SHORT: Z-score très positif (spread sur-évalué)
-        df_signaux.loc[zscore > self.seuil_entree, 'signal'] = -1
-        
-        # SORTIE: Z-score revient vers la moyenne
-        df_signaux.loc[abs(zscore) < self.seuil_sortie, 'signal'] = 0
-        
-        # Calculer la position active (forward fill jusqu'au prochain signal)
-        position_actuelle = 0
-        positions = []
-        
-        for signal in df_signaux['signal']:
-            if signal != 0:
-                position_actuelle = signal
-            positions.append(position_actuelle)
-        
-        df_signaux['position'] = positions
-        
-        return df_signaux
+
+        # Génération des signaux (délégué à la stratégie)
+        df_signaux = self.strategy.generer_signaux(prix_a, prix_b)
+        # Extraction du ratio
+        ratio = df_signaux['ratio'].iloc[0]
+        # Simuler des trades
+        df_trades = self.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+        # Calcul des métriques
+        metriques = self.calculer_metriques(df_trades)
+        return {
+            'df_signaux': df_signaux,
+            'df_trades': df_trades,
+            'metriques': metriques,
+            'ratio': ratio
+        }
     
     
     def simuler_trades(self, df_signaux: pd.DataFrame, prix_a: pd.Series, prix_b: pd.Series, ratio: float) -> pd.DataFrame:
@@ -132,7 +63,7 @@ class Backtester:
         Simule l'exécution des trades et calcule les profits/pertes.
         
         Args:
-            df_signaux: DataFrame des signaux (retour de generer_signaux)
+            df_signaux: DataFrame des signaux (retour de strategy.generer_signaux)
             prix_a: Série de prix de l'action A
             prix_b: Série de prix de l'action B
             ratio: Ratio de couverture
