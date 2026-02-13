@@ -29,33 +29,33 @@ class ZScoreReversionStrategy(Strategy) :
     Stratégie de retour à la moyenne basée sur le Z-Score.
     """
 
-    def __init__(self, window: int = 20, seuil_entree: float = 2.0, seuil_sortie: float = 0.5):
+    def __init__(self, fenetre: int = 20, seuil_entree: float = 2.0, seuil_sortie: float = 0.5):
         """
         Initialise la stratégie de Z-Score.
 
         Args:
-            window (int): La fenêtre de temps pour la moyenne mobile et l'écart-type (par défaut 20).
+            fenetre (int): La fenêtre de temps pour la moyenne mobile et l'écart-type (par défaut 20).
             seuil_entree (float): Le niveau de Z-Score pour déclencher une position (par défaut 2.0).
             seuil_sortie (float): Le niveau de Z-Score pour fermer une position (par défaut 0.5).
         """
-        self.window = window
+        self.fenetre = fenetre
         self.seuil_entree = seuil_entree
         self.seuil_sortie = seuil_sortie
 
     def generer_signaux(self, prix_a: pd.Series, prix_b: pd.Series) -> pd.DataFrame:
         # Calculer le ratio de couverture (Hedge Ratio)
-        slope, intercept = stats.linregress(prix_b, prix_a)[:2]
-        ratio = slope
+        pente, intercept = stats.linregress(prix_b, prix_a)[:2]
+        ratio = pente
 
         # Calculer le Spread
         spread = prix_a - ratio * prix_b
 
         # Calculer le Z-Score
         # Calcul de la moyenne mobile
-        moyenne_mobile = spread.rolling(self.window).mean()
+        moyenne_mobile = spread.rolling(self.fenetre).mean()
         
         # Calcul de l'écart-type mobile
-        ecart_type_mobile = spread.rolling(self.window).std()
+        ecart_type_mobile = spread.rolling(self.fenetre).std()
         zscore = (spread - moyenne_mobile) / ecart_type_mobile
 
         # Générer les signaux 
@@ -73,16 +73,16 @@ class ZScoreReversionStrategy(Strategy) :
         
         # On itère pour gérer l'état (je garde ma position tant que je ne touche pas la sortie)
         for i in range(len(df_signaux)):
-            sig = df_signaux['signal'].iloc[i]
-            zs = df_signaux['zscore'].iloc[i]
+            signal_courant = df_signaux['signal'].iloc[i]
+            zscore_courant = df_signaux['zscore'].iloc[i]
 
             # Si signal d'entrée fort, on prend position
-            if sig != 0:
-                position_actuelle = sig
+            if signal_courant != 0:
+                position_actuelle = signal_courant
             # Sinon, si on est en position, on vérifie si on doit sortir
             elif position_actuelle != 0:
                 # Si le Z-Score est revenu dans la bande de sortie (proche de 0)
-                if abs(zs) < self.seuil_sortie:
+                if abs(zscore_courant) < self.seuil_sortie:
                     position_actuelle = 0
 
             positions.append(position_actuelle)

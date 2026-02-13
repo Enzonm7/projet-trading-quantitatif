@@ -135,23 +135,23 @@ class Backtester:
             sharpe_ratio = 0.0
         
         # Maximum Drawdown
-        capital_max = df_trades['capital'].cummax()
-        drawdown = (df_trades['capital'] - capital_max) / capital_max * 100
+        capital_maximum = df_trades['capital'].cummax()
+        drawdown = (df_trades['capital'] - capital_maximum) / capital_maximum * 100
         max_drawdown = drawdown.min()
         
         # Win Rate
-        trades_gagnants = (df_trades['pnl_quotidien'] > 0).sum()
-        trades_perdants = (df_trades['pnl_quotidien'] < 0).sum()
-        total_trades = trades_gagnants + trades_perdants
+        nb_trades_gagnants = (df_trades['pnl_quotidien'] > 0).sum()
+        nb_trades_perdants = (df_trades['pnl_quotidien'] < 0).sum()
+        nb_trades_total = nb_trades_gagnants + nb_trades_perdants
         
-        if total_trades > 0:
-            win_rate = trades_gagnants / total_trades * 100
+        if nb_trades_total > 0:
+            win_rate = nb_trades_gagnants / nb_trades_total * 100
         else:
             win_rate = 0.0
         
         # Nombre de changements de position (trades)
-        changements_position = (df_trades['position'] != df_trades['position'].shift(1)).sum()
-        nombre_trades = changements_position - 1  # Exclure le premier changement
+        nb_changements_position = (df_trades['position'] != df_trades['position'].shift(1)).sum()
+        nombre_trades = nb_changements_position - 1  # Exclure le premier changement
         
         return {
             'rendement_total': round(rendement_total, 2),

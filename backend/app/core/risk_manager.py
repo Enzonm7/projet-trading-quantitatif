@@ -108,7 +108,7 @@ class RiskManager:
         return perte_pct >= max_perte_pct
     
     
-    def ajuster_leverage(self, sharpe_ratio: float, capital: float) -> float:
+    def ajuster_leverage(self, ratio_sharpe: float, capital: float) -> float:
         """
         Ajuste dynamiquement le leverage en fonction du Sharpe Ratio.
         
@@ -116,29 +116,29 @@ class RiskManager:
         permettant d'augmenter le leverage jusqu'à la limite maximale.
         
         Args:
-            sharpe_ratio: Ratio de Sharpe de la stratégie
+            ratio_sharpe: Ratio de Sharpe de la stratégie
             capital: Capital disponible
             
         Returns:
             Leverage ajusté (entre 1.0 et max_leverage)
         """
         # Leverage de base = 1 (pas de leverage)
-        leverage_base = 1.0
+        levier_base = 1.0
         
         # Si Sharpe Ratio > 1, on peut augmenter le leverage progressivement
-        if sharpe_ratio > 1.0:
+        if ratio_sharpe > 1.0:
             # Formule simple : leverage = 1 + (Sharpe - 1) * 0.5
             # Ex: Sharpe = 2 → leverage = 1.5
             #     Sharpe = 3 → leverage = 2.0
-            leverage_ajuste = leverage_base + (sharpe_ratio - 1) * 0.5
+            levier_ajuste = levier_base + (ratio_sharpe - 1) * 0.5
             
             # Limiter au leverage maximum autorisé
-            leverage_final = min(leverage_ajuste, self.max_leverage)
+            levier_final = min(levier_ajuste, self.max_leverage)
         else:
             # Si Sharpe < 1, pas de leverage
-            leverage_final = leverage_base
+            levier_final = levier_base
         
-        return leverage_final
+        return levier_final
     
     
     def appliquer_gestion_risque(self, df_trades: pd.DataFrame, capital_initial: float, prix_a: pd.Series, prix_b: pd.Series) -> pd.DataFrame:
@@ -159,28 +159,28 @@ class RiskManager:
         Returns:
             DataFrame enrichi avec colonnes de gestion du risque
         """
-        df_risk = df_trades.copy()
+        df_risque = df_trades.copy()
         
         # Initialiser les colonnes
-        df_risk['stop_loss_global'] = False
-        df_risk['stop_loss_position'] = False
-        df_risk['taille_position'] = 0.0
+        df_risque['stop_loss_global'] = False
+        df_risque['stop_loss_position'] = False
+        df_risque['taille_position'] = 0.0
         
         # Suivre le prix d'entrée pour chaque position
         prix_entree_a = None
         type_position_active = 0
         
-        for idx in df_risk.index:
-            capital_actuel = df_risk.loc[idx, 'capital']
-            position = df_risk.loc[idx, 'position']
+        for idx in df_risque.index:
+            capital_actuel = df_risque.loc[idx, 'capital']
+            position = df_risque.loc[idx, 'position']
             
             # Vérifier stop-loss global
             stop_global, perte_pct = self.verifier_stop_loss(capital_initial, capital_actuel)
-            df_risk.loc[idx, 'stop_loss_global'] = stop_global
+            df_risque.loc[idx, 'stop_loss_global'] = stop_global
             
             # Si stop-loss global déclenché, fermer toutes les positions
             if stop_global:
-                df_risk.loc[idx:, 'position'] = 0
+                df_risque.loc[idx:, 'position'] = 0
                 break
             
             # Détecter changement de position (entrée en trade)
@@ -192,7 +192,7 @@ class RiskManager:
                 # Calculer taille de position
                 volatilite = df_trades['pnl_quotidien'].std() / capital_initial
                 taille = self.calculer_taille_position(capital_actuel, volatilite)
-                df_risk.loc[idx, 'taille_position'] = taille
+                df_risque.loc[idx, 'taille_position'] = taille
             
             # Vérifier stop-loss de la position active
             if position != 0 and prix_entree_a is not None:
@@ -203,11 +203,11 @@ class RiskManager:
                     type_position_active,
                     max_perte_pct=0.05
                 )
-                df_risk.loc[idx, 'stop_loss_position'] = stop_position
+                df_risque.loc[idx, 'stop_loss_position'] = stop_position
                 
                 # Si stop-loss position déclenché, fermer la position
                 if stop_position:
-                    df_risk.loc[idx:, 'position'] = 0
+                    df_risque.loc[idx:, 'position'] = 0
                     prix_entree_a = None
                     type_position_active = 0
             
@@ -216,7 +216,7 @@ class RiskManager:
                 prix_entree_a = None
                 type_position_active = 0
         
-        return df_risk
+        return df_risque
     
     
     def calculer_metriques_risque(self, df_trades: pd.DataFrame, capital_initial: float) -> Dict[str, float]:
@@ -229,16 +229,16 @@ class RiskManager:
             
         Returns:
             Dictionnaire avec métriques de risque:
-                - perte_max: Perte maximale en euros
-                - perte_max_pct: Perte maximale en %
+                - perte_maximale: Perte maximale en euros
+                - perte_maximale_pct: Perte maximale en %
                 - volatilite_quotidienne: Volatilité des rendements quotidiens
                 - var_95: Value at Risk à 95%
                 - ratio_gain_perte: Ratio gain moyen / perte moyenne
         """
         # Perte maximale
-        capital_min = df_trades['capital'].min()
-        perte_max = capital_initial - capital_min
-        perte_max_pct = (perte_max / capital_initial) * 100
+        capital_minimum = df_trades['capital'].min()
+        perte_maximale = capital_initial - capital_minimum
+        perte_maximale_pct = (perte_maximale / capital_initial) * 100
         
         # Volatilité quotidienne
         rendements = df_trades['pnl_quotidien'] / capital_initial
@@ -259,8 +259,8 @@ class RiskManager:
             ratio_gain_perte = 0.0
         
         return {
-            'perte_max': round(perte_max, 2),
-            'perte_max_pct': round(perte_max_pct, 2),
+            'perte_maximale': round(perte_maximale, 2),
+            'perte_maximale_pct': round(perte_maximale_pct, 2),
             'volatilite_quotidienne': round(volatilite_quotidienne * 100, 4),
             'var_95': round(var_95 * 100, 4),
             'ratio_gain_perte': round(ratio_gain_perte, 2)

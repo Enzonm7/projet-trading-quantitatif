@@ -49,21 +49,21 @@ class PairsSelector:
             series_b: Série de prix du second ticker
             
         Returns:
-            Tuple (is_cointegrated, p_value):
-                - is_cointegrated: True si cointégré, False sinon
-                - p_value: Valeur du test ADF
+            Tuple (est_cointegree, p_valeur):
+                - est_cointegree: True si cointégré, False sinon
+                - p_valeur: Valeur du test ADF
         """
         # Calculer le ratio optimal via régression linéaire
-        slope, intercept = stats.linregress(series_b, series_a)[:2]
+        pente, intercept = stats.linregress(series_b, series_a)[:2]
         # Claculer le spread  
-        spread = series_a - slope * series_b - intercept
+        spread = series_a - pente * series_b - intercept
         # Test ADF sur le spread
-        adf_res = adfuller(spread)
-        p_value = adf_res[1] # p_value est à l'index 1
+        res_adf = adfuller(spread)
+        p_valeur = res_adf[1] # p_valeur est à l'index 1
         # Vérifier la cointégration
-        is_cointegrated =  p_value < self.pvalue_threshold
+        est_cointegree =  p_valeur < self.pvalue_threshold
         # Retourner le tuple 
-        return (is_cointegrated, p_value)      
+        return (est_cointegree, p_valeur)      
     
 
     def find_all_pairs(self, tickers: List[str]) -> List[Tuple[str, str]]:
@@ -76,8 +76,8 @@ class PairsSelector:
         Returns:
             Liste de tuples (ticker_a, ticker_b) représentant toutes les paires
         """
-        paires = combinations(tickers, 2) 
-        return list(paires)
+        toutes_paires = combinations(tickers, 2) 
+        return list(toutes_paires)
     
 
     def filter_valid_pairs(self, pairs: List[Tuple[str, str, float, float]]) -> List[Tuple[str, str, float, float]]:
@@ -85,15 +85,15 @@ class PairsSelector:
         Filtre les paires selon les seuils de corrélation et cointégration.
         
         Args:
-            pairs: Liste de tuples (ticker_a, ticker_b, correlation, p_value)
+            pairs: Liste de tuples (ticker_a, ticker_b, correlation, p_valeur)
             
         Returns:
             Liste filtrée des paires valides
         """
         paires_valides = []
         for pair in pairs:
-            ticker_a, ticker_b, correlation, p_value = pair
-            if correlation >= self.correlation_threshold and p_value < self.pvalue_threshold:
+            ticker_a, ticker_b, correlation, p_valeur = pair
+            if correlation >= self.correlation_threshold and p_valeur < self.pvalue_threshold:
                 paires_valides.append(pair)
         return paires_valides    
         

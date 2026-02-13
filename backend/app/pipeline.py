@@ -45,35 +45,35 @@ class TradingPipeline:
         Returns:
             Dictionnaire contenant:
                 - ticker_a, ticker_b: Tickers analysés
-                - pair_data: DataFrame des prix
-                - is_cointegrated: Bool de cointégration
-                - p_value: P-value du test ADF
+                - donnees_paire: DataFrame des prix
+                - est_cointegree: Bool de cointégration
+                - p_valeur: P-value du test ADF
                 - ratio_couverture: Hedge ratio
                 - spread: Série du spread
                 - zscore: Série du z-score
                 - df_signaux: DataFrame des signaux
                 - df_trades: DataFrame des trades
-                - df_risk: DataFrame avec risk management (si appliqué)
+                - df_risque: DataFrame avec risk management (si appliqué)
                 - metriques: Métriques de performance
                 - metriques_risque: Métriques de risque (si appliqué)
         """
         # 1. Téléchargement des données
-        pair_data = self.fetcher.download_pair(ticker_a, ticker_b, start_date, end_date)
-        prix_a = pair_data[f'Close_{ticker_a}']
-        prix_b = pair_data[f'Close_{ticker_b}']
+        donnees_paire = self.fetcher.download_pair(ticker_a, ticker_b, start_date, end_date)
+        prix_a = donnees_paire[f'Close_{ticker_a}']
+        prix_b = donnees_paire[f'Close_{ticker_b}']
         
         # 2. Validation de la paire (cointégration)
-        is_cointegrated, p_value = self.selector.test_cointegration(prix_a, prix_b)
+        est_cointegree, p_valeur = self.selector.test_cointegration(prix_a, prix_b)
         
         # 3. Backtesting (DÉLÉGATION au Backtester)
         resultats_backtest = self.backtester.executer_backtest(prix_a, prix_b)
         
         # . Gestion du risque
-        df_risk = None
+        df_risque = None
         metriques_risque = None
         
         if appliquer_risk_management:
-            df_risk = self.risk_manager.appliquer_gestion_risque(
+            df_risque = self.risk_manager.appliquer_gestion_risque(
                 resultats_backtest['df_trades'],
                 self.backtester.capital_initial,
                 prix_a,
@@ -88,15 +88,15 @@ class TradingPipeline:
         return {
             'ticker_a': ticker_a,
             'ticker_b': ticker_b,
-            'pair_data': pair_data,
-            'is_cointegrated': is_cointegrated,
-            'p_value': p_value,
+            'donnees_paire': donnees_paire,
+            'est_cointegree': est_cointegree,
+            'p_valeur': p_valeur,
             'ratio_couverture': resultats_backtest['ratio'],
             'spread': resultats_backtest['df_signaux']['spread'],
             'zscore': resultats_backtest['df_signaux']['zscore'],
             'df_signaux': resultats_backtest['df_signaux'],
             'df_trades': resultats_backtest['df_trades'],
-            'df_risk': df_risk,
+            'df_risque': df_risque,
             'metriques': resultats_backtest['metriques'],
             'metriques_risque': metriques_risque
         }
@@ -117,13 +117,13 @@ class TradingPipeline:
         print(f"\n PAIRE ANALYSÉE")
         print(f"  Ticker A : {resultats['ticker_a']}")
         print(f"  Ticker B : {resultats['ticker_b']}")
-        print(f"  Période : {resultats['pair_data'].index[0].date()} → {resultats['pair_data'].index[-1].date()}")
-        print(f"  Nombre de jours : {len(resultats['pair_data'])}")
+        print(f"  Période : {resultats['donnees_paire'].index[0].date()} → {resultats['donnees_paire'].index[-1].date()}")
+        print(f"  Nombre de jours : {len(resultats['donnees_paire'])}")
         
         # Validation statistique
         print(f"\n VALIDATION STATISTIQUE")
-        print(f"  Cointégration : {'OUI' if resultats['is_cointegrated'] else 'NON'}")
-        print(f"  P-value : {resultats['p_value']:.4f}")
+        print(f"  Cointégration : {'OUI' if resultats['est_cointegree'] else 'NON'}")
+        print(f"  P-value : {resultats['p_valeur']:.4f}")
         print(f"  Ratio de couverture : {resultats['ratio_couverture']:.4f}")
         
         # Métriques de performance
@@ -139,20 +139,20 @@ class TradingPipeline:
         if resultats['metriques_risque'] is not None:
             metriques_risque = resultats['metriques_risque']
             print(f"\n  GESTION DU RISQUE")
-            print(f"  Perte maximale : {metriques_risque['perte_max']:.2f} € ({metriques_risque['perte_max_pct']:.2f} %)")
+            print(f"  Perte maximale : {metriques_risque['perte_maximale']:.2f} € ({metriques_risque['perte_maximale_pct']:.2f} %)")
             print(f"  Volatilité quotidienne : {metriques_risque['volatilite_quotidienne']:.4f} %")
             print(f"  VaR 95% : {metriques_risque['var_95']:.4f} %")
             print(f"  Ratio gain/perte : {metriques_risque['ratio_gain_perte']:.2f}")
             
             # Info stop-loss
-            if resultats['df_risk'] is not None:
-                stop_global = resultats['df_risk']['stop_loss_global'].any()
-                stop_position = resultats['df_risk']['stop_loss_position'].any()
+            if resultats['df_risque'] is not None:
+                stop_global = resultats['df_risque']['stop_loss_global'].any()
+                stop_position = resultats['df_risque']['stop_loss_position'].any()
                 print(f"\n  Stop-loss global déclenché : {'OUI' if stop_global else 'NON'}")
                 print(f"  Stop-loss position déclenché : {'OUI' if stop_position else 'NON'}")
         
         # Capital final
-        df_final = resultats['df_risk'] if resultats['df_risk'] is not None else resultats['df_trades']
+        df_final = resultats['df_risque'] if resultats['df_risque'] is not None else resultats['df_trades']
         capital_initial = self.backtester.capital_initial
         capital_final = df_final['capital'].iloc[-1]
         

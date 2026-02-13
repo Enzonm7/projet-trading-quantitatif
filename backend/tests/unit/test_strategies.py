@@ -18,7 +18,7 @@ class TestZScoreReversionStrategy:
     def strategy(self):
         """Fixture : Instance de stratégie avec paramètres par défaut."""
         return ZScoreReversionStrategy(
-            window=20, 
+            fenetre=20, 
             seuil_entree=2.0, 
             seuil_sortie=0.5
         )
@@ -49,7 +49,7 @@ class TestZScoreReversionStrategy:
         strategy = ZScoreReversionStrategy()
         
         # ASSERT
-        assert strategy.window == 20
+        assert strategy.fenetre == 20
         assert strategy.seuil_entree == 2.0
         assert strategy.seuil_sortie == 0.5
     
@@ -59,13 +59,13 @@ class TestZScoreReversionStrategy:
         
         # ARRANGE & ACT
         strategy = ZScoreReversionStrategy(
-            window=30, 
+            fenetre=30, 
             seuil_entree=2.5, 
             seuil_sortie=0.3
         )
         
         # ASSERT
-        assert strategy.window == 30
+        assert strategy.fenetre == 30
         assert strategy.seuil_entree == 2.5
         assert strategy.seuil_sortie == 0.3
     
@@ -171,9 +171,9 @@ class TestZScoreReversionStrategy:
         df = strategy.generer_signaux(prix_a, prix_b)
         
         # ASSERT
-        # Les premières valeurs (window) devraient être NaN
+        # Les premières valeurs (fenetre) devraient être NaN
         nb_nan = df['zscore'].isna().sum()
-        assert nb_nan >= strategy.window - 1, f"Attendu au moins {strategy.window-1} NaN, trouvé {nb_nan}"
+        assert nb_nan >= strategy.fenetre - 1, f"Attendu au moins {strategy.fenetre-1} NaN, trouvé {nb_nan}"
     
     
     def test_spread_calcule_correctement(self, strategy, prix_simples):
@@ -201,7 +201,7 @@ class TestZScoreReversionStrategy:
         """Vérifie le comportement avec des séries plus courtes que la fenêtre."""
         
         # ARRANGE
-        # Créer des séries de 15 points (< window=20)
+        # Créer des séries de 15 points (< fenetre=20)
         dates = pd.date_range('2023-01-01', periods=15, freq='D')
         prix_a = pd.Series(range(100, 115), index=dates)
         prix_b = pd.Series(range(100, 115), index=dates)
