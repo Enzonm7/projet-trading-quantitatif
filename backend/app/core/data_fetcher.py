@@ -84,14 +84,12 @@ class DataFetcher:
         Returns:
             DataFrame avec les données OHLCV
         """
-        cache_filename = f"{ticker}_{start_date}_{end_date}.pkl"
+        cache_filename = f"{ticker}_{start_date}_{end_date}.csv"
         cache_path = self.cache_dir / cache_filename
 
         if cache_path.exists():
-            with open(cache_path, 'rb') as f:
-                data = pickle.load(f)
+            data = pd.read_csv(cache_path, index_col=0, parse_dates=True)
         else:
             data = self.download_stock(ticker, start_date, end_date)
-            with open(cache_path, 'wb') as f:
-                pickle.dump(data, f)
+            data.to_csv(cache_path)
         return data
