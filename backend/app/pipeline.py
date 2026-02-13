@@ -2,11 +2,13 @@
 Module Pipeline pour l'orchestration du système de pairs trading.
 """
 
+import pandas as pd 
 from backend.app.core.data_fetcher import DataFetcher
 from backend.app.core.data_source import DataSource
 from backend.app.core.pairs_selector import PairsSelector
 from backend.app.core.backtester import Backtester
 from backend.app.core.risk_manager import RiskManager
+from pathlib import Path
 from typing import Dict, Any
 
 
@@ -44,19 +46,9 @@ class TradingPipeline:
             appliquer_risk_management: Appliquer la gestion du risque (défaut: True)
             
         Returns:
-            Dictionnaire contenant:
-                - ticker_a, ticker_b: Tickers analysés
-                - donnees_paire: DataFrame des prix
-                - est_cointegree: Bool de cointégration
-                - p_valeur: P-value du test ADF
-                - ratio_couverture: Hedge ratio
-                - spread: Série du spread
-                - zscore: Série du z-score
-                - df_signaux: DataFrame des signaux
-                - df_trades: DataFrame des trades
-                - df_risque: DataFrame avec risk management (si appliqué)
-                - metriques: Métriques de performance
-                - metriques_risque: Métriques de risque (si appliqué)
+            Dictionnaire avec les clés : ticker_a, ticker_b, donnees_paire,
+            est_cointegree, p_valeur, ratio_couverture, spread, zscore,
+            df_signaux, df_trades, df_risque, metriques, metriques_risque.
         """
         # 1. Téléchargement des données
         donnees_paire = self.fetcher.download_pair(ticker_a, ticker_b, start_date, end_date)
@@ -101,6 +93,86 @@ class TradingPipeline:
             'metriques': resultats_backtest['metriques'],
             'metriques_risque': metriques_risque
         }
+    
+    def analyser_univers(self, tickers: list, start_date: str, end_date: str, appliquer_risk_management: bool = False) -> list:
+        """
+        Analyse toutes les paires possibles d'un univers de tickers.
+
+        Args:
+            tickers: Liste de symboles boursiers (ex: ['AAPL', 'MSFT', 'GOOGL'])
+            start_date: Date de début 'YYYY-MM-DD'
+            end_date: Date de fin 'YYYY-MM-DD'
+            appliquer_risk_management: Appliquer le risk management (défaut: False)
+
+        Returns:
+            Liste de dictionnaires triée par Sharpe Ratio décroissant.
+            Chaque dictionnaire contient :
+                - paire: str (ex: 'AAPL-MSFT')
+                - est_cointegree: bool
+                - p_valeur: float
+                - sharpe_ratio: float
+                - rendement_total: float
+                - max_drawdown: float
+        """
+        # 1. Générer toutes les combinaisons de paires
+        combinaisons = self.selector.find_all_pairs(tickers)
+        # 2. Pour chaque paire, executer_backtest()
+        resultats_univers = []
+        for ticker_a, ticker_b in combinaisons:
+            try:
+                print(f"Analyse {ticker_a}-{ticker_b}...")
+                res = self.executer_backtest(ticker_a, ticker_b, start_date, end_date, appliquer_risk_management)
+                # 3. Construire un dictionnaire résumé pour chaque paire réussie
+                resume = {
+                    'paire': f"{ticker_a}-{ticker_b}",
+                    'est_cointegree': res['est_cointegree'],
+                    'p_valeur': res['p_valeur'],
+                    'sharpe_ratio': res['metriques']['sharpe_ratio'],  # dans metriques
+                    'rendement_total': res['metriques']['rendement_total'],
+                    'max_drawdown': res['metriques']['max_drawdown']
+                }
+                resultats_univers.append(resume)
+            except Exception as e:
+                print(f"Erreur {ticker_a}-{ticker_b}: {e}")
+
+        # 4. Trier la liste par sharpe_ratio décroissant
+        for i in range(len(resultats_univers)):
+            for j in range(i + 1, len(resultats_univers)):
+                if resultats_univers[j]['sharpe_ratio'] > resultats_univers[i]['sharpe_ratio']:
+                    resultats_univers[i], resultats_univers[j] = resultats_univers[j], resultats_univers[i]
+
+        return resultats_univers
+
+    def sauvegarder_resultats(self, resultats: dict, dossier: str = "./data") -> None:
+        """
+        Sauvegarde les résultats d'un backtest en fichiers CSV.
+
+        Args:
+            resultats: Dictionnaire retourné par executer_backtest()
+            dossier: Dossier de destination (défaut: ./data)
+
+        Sauvegarde trois fichiers :
+            - {ticker_a}_{ticker_b}_signaux.csv  ← resultats['df_signaux']
+            - {ticker_a}_{ticker_b}_trades.csv   ← resultats['df_trades']
+            - {ticker_a}_{ticker_b}_metriques.csv ← resultats['metriques'] converti en DataFrame
+        """
+        # 1. Créer le dossier s'il n'existe pas
+        chemin_dossier = Path(dossier)
+        chemin_dossier.mkdir(parents=True, exist_ok=True)
+
+        # 2. Construire le préfixe à partir des tickers
+        prefixe = f"{resultats['ticker_a']}_{resultats['ticker_b']}"
+
+        # 3. Sauvegarder df_signaux
+        resultats['df_signaux'].to_csv(chemin_dossier / f"{prefixe}_signaux.csv")
+
+        # 4. Sauvegarder df_trades
+        resultats['df_trades'].to_csv(chemin_dossier / f"{prefixe}_trades.csv")
+
+        # 5. Convertir metriques en DataFrame et sauvegarder
+        pd.DataFrame([resultats['metriques']]).to_csv(chemin_dossier / f"{prefixe}_metriques.csv")
+
+        print(f"Résultats sauvegardés dans {dossier}/")
     
     
     def generer_rapport(self, resultats: Dict[str, Any]) -> None:
