@@ -3,6 +3,7 @@ Module Pipeline pour l'orchestration du système de pairs trading.
 """
 
 from backend.app.core.data_fetcher import DataFetcher
+from backend.app.core.data_source import DataSource
 from backend.app.core.pairs_selector import PairsSelector
 from backend.app.core.backtester import Backtester
 from backend.app.core.risk_manager import RiskManager

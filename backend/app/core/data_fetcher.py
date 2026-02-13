@@ -2,10 +2,9 @@
 Module DataFetcher pour le téléchargement et la gestion du cache des données financières.
 """
 
-import pandas as pd
-import yfinance as yf
+import pandas as pd 
 from pathlib import Path
-import pickle
+from backend.app.core.data_source import DataSource
 
 class DataFetcher:
     """
@@ -13,40 +12,17 @@ class DataFetcher:
     et de la gestion du cache local.
     """
     
-    def __init__(self, cache_dir: str = "./cache"):
+    def __init__(self, source: DataSource, cache_dir: str = "./cache"):
         """
         Initialise le DataFetcher.
         
         Args:
             cache_dir: Chemin du répertoire de cache (défaut: ./cache)
         """
+        self.source = source
         self.cache_dir = Path(cache_dir)
         # Créer le dossier cache s'il n'existe pas
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-
-    def download_stock(self, ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """
-        Télécharge les données OHLCV d'un ticker depuis Yahoo Finance.
-    
-        Args:
-            ticker: Symbole du ticker (ex: 'AAPL', 'MSFT')
-            start_date: Date de début au format 'YYYY-MM-DD'
-            end_date: Date de fin au format 'YYYY-MM-DD'
-            
-        Returns:
-            DataFrame avec colonnes: Open, High, Low, Close, Volume
-            Index: Date
-        """
-        try: 
-            data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-            if data.empty:
-                raise ValueError(f"Aucune donnée disponible pour {ticker}")
-            if data.columns.nlevels > 1:
-                data.columns = [col[0] for col in data.columns]
-            return data
-        except Exception as e:
-            raise ValueError(f"Erreur lors du téléchargement de {ticker}: {str(e)}")
+        self.cache_dir.mkdir(parents=True, exist_ok=True)   
         
         
     def download_pair(self, ticker_a: str, ticker_b: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -90,6 +66,6 @@ class DataFetcher:
         if cache_path.exists():
             data = pd.read_csv(cache_path, index_col=0, parse_dates=True)
         else:
-            data = self.download_stock(ticker, start_date, end_date)
+            data = self.source.telecharger(ticker, start_date, end_date)
             data.to_csv(cache_path)
         return data
