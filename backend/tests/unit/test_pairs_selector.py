@@ -118,7 +118,7 @@ class TestPairsSelector:
         # ACT
         est_cointegree, _ = selector.test_cointegration(series_a, series_b)
         # ASSERT
-        assert est_cointegree is False
+        assert est_cointegree == False
 
     def test_cointegration_pvalue_entre_0_et_1(self, selector, series_cointegrees):
         """La p-value retournée doit toujours être comprise entre 0 et 1."""
