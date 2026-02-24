@@ -1,191 +1,233 @@
-from backend.app.core.data_fetcher import DataFetcher
-from backend.app.core.pairs_selector import PairsSelector
-from backend.app.core.backtester import Backtester
+"""
+Tests unitaires pour RiskManager.
+Pattern AAA (Arrange-Act-Assert).
+"""
+
+import pytest
+import numpy as np
+import pandas as pd
 from backend.app.core.risk_manager import RiskManager
-from scipy import stats
-
-# Initialisation des modules
-fetcher = DataFetcher()
-selector = PairsSelector(correlation_threshold=0.7, pvalue_threshold=0.05)
-backtester = Backtester(capital_initial=10000.0, seuil_entree=2.0, seuil_sortie=0.5)
-risk_manager = RiskManager(max_position_size=0.1, stop_loss_pct=0.02, max_leverage=1.0)
-
-# Téléchargement des données pour une paire (AAPL-MSFT)
-print("\n--- Téléchargement des données ---")
-pair_data = fetcher.download_pair("AAPL", "MSFT", "2023-01-01", "2024-01-01")
-print(f"Données téléchargées : {pair_data.shape}")
-print(f"Colonnes : {list(pair_data.columns)}")
-
-# Extraction des prix de clôture
-prix_aapl = pair_data['Close_AAPL']
-prix_msft = pair_data['Close_MSFT']
-
-# Calcul du ratio de couverture (hedge ratio)
-print("\n--- Calcul du ratio de couverture ---")
-slope, intercept = stats.linregress(prix_msft, prix_aapl)[:2]
-ratio_couverture = slope
-print(f"Ratio de couverture (hedge ratio) : {ratio_couverture:.4f}")
-
-# Backtesting complet (nécessaire pour les tests RiskManager)
-print("\n--- Backtesting ---")
-spread = backtester.calculer_spread(prix_aapl, prix_msft, ratio_couverture)
-zscore = backtester.calculer_zscore(spread, window=20)
-df_signaux = backtester.generer_signaux(zscore)
-df_trades = backtester.simuler_trades(df_signaux, prix_aapl, prix_msft, ratio_couverture)
-print(f"Backtesting terminé : {df_trades.shape}")
 
 
-# Test 1 : Calcul de la taille de position
-print("\n--- Test 1 : Calcul de la taille de position ---")
+# ========== TESTS ==========
 
-try:
-    capital = 10000.0
-    
-    # Sans volatilité
-    taille_sans_vol = risk_manager.calculer_taille_position(capital)
-    print("Test 1a réussi !")
-    print(f"  Capital : {capital:.2f} €")
-    print(f"  Taille position (sans volatilité) : {taille_sans_vol:.2f} €")
-    print(f"  Pourcentage : {(taille_sans_vol/capital)*100:.2f} %")
-    
-    # Avec volatilité faible
-    taille_vol_faible = risk_manager.calculer_taille_position(capital, volatilite=0.01)
-    print("\nTest 1b réussi !")
-    print(f"  Taille position (volatilité faible 0.01) : {taille_vol_faible:.2f} €")
-    
-    # Avec volatilité élevée
-    taille_vol_elevee = risk_manager.calculer_taille_position(capital, volatilite=0.05)
-    print("\nTest 1c réussi !")
-    print(f"  Taille position (volatilité élevée 0.05) : {taille_vol_elevee:.2f} €")
-    print(f"  Impact volatilité : {((taille_vol_faible - taille_vol_elevee)/taille_vol_faible)*100:.2f} % de réduction")
-    
-except Exception as e:
-    print(f"Test 1 échoué : {e}")
+class TestRiskManager:
 
+    # ===== FIXTURES =====
 
-# Test 2 : Vérification stop-loss global
-print("\n--- Test 2 : Vérification stop-loss global ---")
+    @pytest.fixture
+    def risk_manager(self):
+        """Fixture : RiskManager avec paramètres par défaut."""
+        return RiskManager(max_position_size=0.1, stop_loss_pct=0.02, max_leverage=1.0)
 
-try:
-    capital_initial = 10000.0
-    
-    # Cas 1 : Pas de stop-loss
-    capital_ok = 9850.0
-    stop_ok, perte_ok = risk_manager.verifier_stop_loss(capital_initial, capital_ok)
-    print("Test 2a réussi !")
-    print(f"  Capital initial : {capital_initial:.2f} €")
-    print(f"  Capital actuel : {capital_ok:.2f} €")
-    print(f"  Perte : {perte_ok*100:.2f} %")
-    print(f"  Stop-loss déclenché : {stop_ok}")
-    
-    # Cas 2 : Stop-loss déclenché
-    capital_stop = 9750.0
-    stop_declenche, perte_stop = risk_manager.verifier_stop_loss(capital_initial, capital_stop)
-    print("\nTest 2b réussi !")
-    print(f"  Capital actuel : {capital_stop:.2f} €")
-    print(f"  Perte : {perte_stop*100:.2f} %")
-    print(f"  Stop-loss déclenché : {stop_declenche}")
-    
-except Exception as e:
-    print(f"Test 2 échoué : {e}")
+    @pytest.fixture
+    def df_trades(self):
+        """Fixture : DataFrame de trades synthétique pour les tests."""
+        np.random.seed(42)
+        n = 100
+        dates = pd.date_range('2024-01-01', periods=n, freq='D')
+        pnl_quotidien = np.random.randn(n) * 50
+        pnl_cumule = np.cumsum(pnl_quotidien)
+        return pd.DataFrame({
+            'position': [0]*10 + [1]*20 + [0]*10 + [-1]*20 + [0]*40,
+            'pnl_quotidien': pnl_quotidien,
+            'pnl_cumule': pnl_cumule,
+            'capital': 10000.0 + pnl_cumule,
+        }, index=dates)
 
+    @pytest.fixture
+    def prix_synthetiques(self):
+        """Fixture : deux séries de prix synthétiques alignées."""
+        np.random.seed(42)
+        dates = pd.date_range('2024-01-01', periods=100, freq='D')
+        prix_a = pd.Series(100 + np.cumsum(np.random.randn(100)), index=dates)
+        prix_b = pd.Series(100 + np.cumsum(np.random.randn(100)), index=dates)
+        return prix_a, prix_b
 
-# Test 3 : Vérification stop-loss position
-print("\n--- Test 3 : Vérification stop-loss position ---")
+    # ===== TESTS calculer_taille_position() =====
 
-try:
-    # Position LONG
-    prix_entree_long = 150.0
-    prix_actuel_ok = 148.0
-    prix_actuel_stop = 142.0
-    
-    stop_long_ok = risk_manager.verifier_stop_loss_position(prix_entree_long, prix_actuel_ok, 1)
-    stop_long_declenche = risk_manager.verifier_stop_loss_position(prix_entree_long, prix_actuel_stop, 1)
-    
-    print("Test 3a réussi (LONG) !")
-    print(f"  Prix entrée : {prix_entree_long:.2f} €")
-    print(f"  Prix actuel OK : {prix_actuel_ok:.2f} € → Stop : {stop_long_ok}")
-    print(f"  Prix actuel STOP : {prix_actuel_stop:.2f} € → Stop : {stop_long_declenche}")
-    
-    # Position SHORT
-    prix_entree_short = 150.0
-    prix_actuel_ok_short = 152.0
-    prix_actuel_stop_short = 158.0
-    
-    stop_short_ok = risk_manager.verifier_stop_loss_position(prix_entree_short, prix_actuel_ok_short, -1)
-    stop_short_declenche = risk_manager.verifier_stop_loss_position(prix_entree_short, prix_actuel_stop_short, -1)
-    
-    print("\nTest 3b réussi (SHORT) !")
-    print(f"  Prix entrée : {prix_entree_short:.2f} €")
-    print(f"  Prix actuel OK : {prix_actuel_ok_short:.2f} € → Stop : {stop_short_ok}")
-    print(f"  Prix actuel STOP : {prix_actuel_stop_short:.2f} € → Stop : {stop_short_declenche}")
-    
-except Exception as e:
-    print(f"Test 3 échoué : {e}")
+    def test_taille_position_sans_volatilite(self, risk_manager):
+        """Sans volatilité, la taille = capital * max_position_size."""
+        # ARRANGE
+        capital = 10000.0
+        # ACT
+        taille = risk_manager.calculer_taille_position(capital)
+        # ASSERT
+        assert taille == pytest.approx(1000.0)
 
+    def test_taille_position_avec_volatilite_reduit_taille(self, risk_manager):
+        """Avec volatilité, la taille doit être inférieure à la taille de base."""
+        # ARRANGE
+        capital = 10000.0
+        taille_base = risk_manager.calculer_taille_position(capital)
+        # ACT
+        taille_avec_vol = risk_manager.calculer_taille_position(capital, volatilite=0.05)
+        # ASSERT
+        assert taille_avec_vol < taille_base
 
-# Test 4 : Ajustement du leverage
-print("\n--- Test 4 : Ajustement du leverage ---")
+    def test_taille_position_volatilite_elevee_inferieure_faible(self, risk_manager):
+        """Une volatilité élevée produit une taille de position plus petite."""
+        # ARRANGE
+        capital = 10000.0
+        # ACT
+        taille_faible = risk_manager.calculer_taille_position(capital, volatilite=0.01)
+        taille_elevee = risk_manager.calculer_taille_position(capital, volatilite=0.05)
+        # ASSERT
+        assert taille_elevee < taille_faible
 
-try:
-    capital = 10000.0
-    
-    # Sharpe faible (pas de leverage)
-    leverage_faible = risk_manager.ajuster_leverage(0.5, capital)
-    print("Test 4a réussi !")
-    print(f"  Sharpe Ratio : 0.5")
-    print(f"  Leverage ajusté : {leverage_faible:.2f}x")
-    
-    # Sharpe moyen
-    leverage_moyen = risk_manager.ajuster_leverage(1.5, capital)
-    print("\nTest 4b réussi !")
-    print(f"  Sharpe Ratio : 1.5")
-    print(f"  Leverage ajusté : {leverage_moyen:.2f}x")
-    
-    # Sharpe élevé
-    leverage_eleve = risk_manager.ajuster_leverage(3.0, capital)
-    print("\nTest 4c réussi !")
-    print(f"  Sharpe Ratio : 3.0")
-    print(f"  Leverage ajusté : {leverage_eleve:.2f}x")
-    print(f"  Leverage max autorisé : {risk_manager.max_leverage:.2f}x")
-    
-except Exception as e:
-    print(f"Test 4 échoué : {e}")
+    def test_taille_position_capital_negatif_leve_erreur(self, risk_manager):
+        """Un capital négatif doit lever une ValueError."""
+        # ACT & ASSERT
+        with pytest.raises(ValueError):
+            risk_manager.calculer_taille_position(-1000.0)
 
+    def test_taille_position_capital_zero_leve_erreur(self, risk_manager):
+        """Un capital nul doit lever une ValueError."""
+        # ACT & ASSERT
+        with pytest.raises(ValueError):
+            risk_manager.calculer_taille_position(0.0)
 
-# Test 5 : Application de la gestion du risque
-print("\n--- Test 5 : Application de la gestion du risque ---")
+    # ===== TESTS verifier_stop_loss() =====
 
-try:
-    df_trades_avec_risque = risk_manager.appliquer_gestion_risque(
-        df_trades, 
-        backtester.capital_initial,
-        prix_aapl,
-        prix_msft
-    )
-    print("Test 5 réussi !")
-    print(f"  Shape : {df_trades_avec_risque.shape}")
-    print(f"  Nouvelles colonnes : {[col for col in df_trades_avec_risque.columns if col not in df_trades.columns]}")
-    print(f"  Stop-loss global déclenché : {df_trades_avec_risque['stop_loss_global'].any()}")
-    print(f"  Stop-loss position déclenché : {df_trades_avec_risque['stop_loss_position'].any()}")
-    print(f"  Échantillon :")
-    print(df_trades_avec_risque[['position', 'capital', 'stop_loss_global', 'stop_loss_position', 'taille_position']].tail(10))
-    
-except Exception as e:
-    print(f"Test 5 échoué : {e}")
+    def test_stop_loss_non_declenche(self, risk_manager):
+        """Une perte inférieure au seuil ne déclenche pas le stop-loss."""
+        # ARRANGE
+        capital_initial = 10000.0
+        capital_actuel = 9850.0  # perte de 1.5% < 2%
+        # ACT
+        stop_declenche, perte_pct = risk_manager.verifier_stop_loss(capital_initial, capital_actuel)
+        # ASSERT
+        assert stop_declenche is False
 
+    def test_stop_loss_declenche(self, risk_manager):
+        """Une perte supérieure au seuil déclenche le stop-loss."""
+        # ARRANGE
+        capital_initial = 10000.0
+        capital_actuel = 9750.0  # perte de 2.5% > 2%
+        # ACT
+        stop_declenche, perte_pct = risk_manager.verifier_stop_loss(capital_initial, capital_actuel)
+        # ASSERT
+        assert stop_declenche is True
 
-# Test 6 : Calcul des métriques de risque
-print("\n--- Test 6 : Calcul des métriques de risque ---")
+    def test_stop_loss_retourne_perte_correcte(self, risk_manager):
+        """La perte retournée doit être correctement calculée."""
+        # ARRANGE
+        capital_initial = 10000.0
+        capital_actuel = 9000.0  # perte de 10%
+        # ACT
+        _, perte_pct = risk_manager.verifier_stop_loss(capital_initial, capital_actuel)
+        # ASSERT
+        assert perte_pct == pytest.approx(0.10)
 
-try:
-    metriques_risque = risk_manager.calculer_metriques_risque(df_trades, backtester.capital_initial)
-    print("Test 6 réussi !")
-    print(f"  Perte maximale : {metriques_risque['perte_max']:.2f} €")
-    print(f"  Perte maximale : {metriques_risque['perte_max_pct']:.2f} %")
-    print(f"  Volatilité quotidienne : {metriques_risque['volatilite_quotidienne']:.4f} %")
-    print(f"  VaR 95% : {metriques_risque['var_95']:.4f} %")
-    print(f"  Ratio gain/perte : {metriques_risque['ratio_gain_perte']:.2f}")
-    
-except Exception as e:
-    print(f"Test 6 échoué : {e}")
+    def test_stop_loss_retourne_tuple(self, risk_manager):
+        """verifier_stop_loss() doit retourner un tuple (bool, float)."""
+        # ACT
+        resultat = risk_manager.verifier_stop_loss(10000.0, 9900.0)
+        # ASSERT
+        assert isinstance(resultat, tuple)
+        assert len(resultat) == 2
+        assert isinstance(resultat[0], bool)
+        assert isinstance(resultat[1], float)
+
+    # ===== TESTS verifier_stop_loss_position() =====
+
+    def test_stop_loss_position_long_non_declenche(self, risk_manager):
+        """Position LONG avec perte faible : stop-loss non déclenché."""
+        # ARRANGE
+        prix_entree, prix_actuel = 150.0, 148.0  # perte de ~1.3% < 5%
+        # ACT
+        stop = risk_manager.verifier_stop_loss_position(prix_entree, prix_actuel, 1)
+        # ASSERT
+        assert stop is False
+
+    def test_stop_loss_position_long_declenche(self, risk_manager):
+        """Position LONG avec perte > 5% : stop-loss déclenché."""
+        # ARRANGE
+        prix_entree, prix_actuel = 150.0, 142.0  # perte de ~5.3% > 5%
+        # ACT
+        stop = risk_manager.verifier_stop_loss_position(prix_entree, prix_actuel, 1)
+        # ASSERT
+        assert stop is True
+
+    def test_stop_loss_position_short_non_declenche(self, risk_manager):
+        """Position SHORT avec hausse faible : stop-loss non déclenché."""
+        # ARRANGE
+        prix_entree, prix_actuel = 150.0, 152.0  # hausse de ~1.3% < 5%
+        # ACT
+        stop = risk_manager.verifier_stop_loss_position(prix_entree, prix_actuel, -1)
+        # ASSERT
+        assert stop is False
+
+    def test_stop_loss_position_short_declenche(self, risk_manager):
+        """Position SHORT avec hausse > 5% : stop-loss déclenché."""
+        # ARRANGE
+        prix_entree, prix_actuel = 150.0, 158.0  # hausse de ~5.3% > 5%
+        # ACT
+        stop = risk_manager.verifier_stop_loss_position(prix_entree, prix_actuel, -1)
+        # ASSERT
+        assert stop is True
+
+    def test_stop_loss_position_neutre_retourne_false(self, risk_manager):
+        """Position neutre (0) : stop-loss toujours False."""
+        # ACT
+        stop = risk_manager.verifier_stop_loss_position(150.0, 100.0, 0)
+        # ASSERT
+        assert stop is False
+
+    # ===== TESTS ajuster_leverage() =====
+
+    def test_leverage_sharpe_faible_retourne_un(self, risk_manager):
+        """Sharpe < 1 : leverage = 1.0 (pas de leverage)."""
+        # ACT
+        leverage = risk_manager.ajuster_leverage(0.5, 10000.0)
+        # ASSERT
+        assert leverage == pytest.approx(1.0)
+
+    def test_leverage_sharpe_eleve_augmente(self):
+        """Sharpe > 1 : leverage doit être > 1.0."""
+        # ARRANGE
+        rm = RiskManager(max_position_size=0.1, stop_loss_pct=0.02, max_leverage=2.0)
+        # ACT
+        leverage = rm.ajuster_leverage(2.0, 10000.0)
+        # ASSERT
+        assert leverage > 1.0
+
+    def test_leverage_ne_depasse_pas_maximum(self, risk_manager):
+        """Le leverage ne doit jamais dépasser max_leverage."""
+        # ACT
+        leverage = risk_manager.ajuster_leverage(10.0, 10000.0)
+        # ASSERT
+        assert leverage <= risk_manager.max_leverage
+
+    # ===== TESTS calculer_metriques_risque() =====
+
+    def test_metriques_risque_retourne_dict(self, risk_manager, df_trades):
+        """calculer_metriques_risque() doit retourner un dictionnaire."""
+        # ACT
+        metriques = risk_manager.calculer_metriques_risque(df_trades, 10000.0)
+        # ASSERT
+        assert isinstance(metriques, dict)
+
+    def test_metriques_risque_cles_presentes(self, risk_manager, df_trades):
+        """Le dictionnaire doit contenir les 5 clés attendues."""
+        # ARRANGE
+        cles_attendues = ['perte_maximale', 'perte_maximale_pct', 'volatilite_quotidienne', 'var_95', 'ratio_gain_perte']
+        # ACT
+        metriques = risk_manager.calculer_metriques_risque(df_trades, 10000.0)
+        # ASSERT
+        for cle in cles_attendues:
+            assert cle in metriques
+
+    def test_metriques_risque_perte_maximale_positive(self, risk_manager, df_trades):
+        """La perte maximale en euros doit être >= 0."""
+        # ACT
+        metriques = risk_manager.calculer_metriques_risque(df_trades, 10000.0)
+        # ASSERT
+        assert metriques['perte_maximale'] >= 0.0
+
+    def test_metriques_risque_volatilite_positive(self, risk_manager, df_trades):
+        """La volatilité quotidienne doit être >= 0."""
+        # ACT
+        metriques = risk_manager.calculer_metriques_risque(df_trades, 10000.0)
+        # ASSERT
+        assert metriques['volatilite_quotidienne'] >= 0.0

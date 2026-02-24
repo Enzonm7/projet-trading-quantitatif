@@ -1,116 +1,164 @@
-from backend.app.core.data_fetcher import DataFetcher
-from backend.app.core.pairs_selector import PairsSelector
+"""
+Tests unitaires pour Backtester.
+Pattern AAA (Arrange-Act-Assert).
+"""
+
+import pytest
+import numpy as np
+import pandas as pd
 from backend.app.core.backtester import Backtester
-from scipy import stats
-
-# Initialisation des modules
-fetcher = DataFetcher()
-selector = PairsSelector(correlation_threshold=0.7, pvalue_threshold=0.05)
-backtester = Backtester(capital_initial=10000.0, seuil_entree=2.0, seuil_sortie=0.5)
-
-# Téléchargement des données pour une paire (AAPL-MSFT)
-print("\n--- Téléchargement des données ---")
-pair_data = fetcher.download_pair("AAPL", "MSFT", "2023-01-01", "2024-01-01")
-print(f"Données téléchargées : {pair_data.shape}")
-print(f"Colonnes : {list(pair_data.columns)}")
-
-# Extraction des prix de clôture
-prix_aapl = pair_data['Close_AAPL']
-prix_msft = pair_data['Close_MSFT']
-
-# Calcul du ratio de couverture (hedge ratio) avec PairsSelector
-print("\n--- Calcul du ratio de couverture ---")
-slope, intercept = stats.linregress(prix_msft, prix_aapl)[:2]
-ratio_couverture = slope
-print(f"Ratio de couverture (hedge ratio) : {ratio_couverture:.4f}")
-print(f"Intercept : {intercept:.4f}")
-
-# Test de cointégration pour validation
-is_cointegrated, p_value = selector.test_cointegration(prix_aapl, prix_msft)
-print(f"Paire cointégrée ? {is_cointegrated} (p-value: {p_value:.4f})")
+from backend.app.core.strategies import Strategy
 
 
-# Test 1 : Calcul du spread
-print("\n--- Test 1 : Calcul du spread ---")
+# ========== FAKE STRATEGY ==========
 
-try:
-    spread = backtester.calculer_spread(prix_aapl, prix_msft, ratio_couverture)
-    print("Test 1 réussi !")
-    print(f"  Shape du spread : {spread.shape}")
-    print(f"  Moyenne du spread : {spread.mean():.4f}")
-    print(f"  Écart-type du spread : {spread.std():.4f}")
-    print(f"  Premières valeurs :")
-    print(spread.head())
-except Exception as e:
-    print(f"Test 1 échoué : {e}")
+class FakeStrategy(Strategy):
+    """
+    Fausse stratégie pour les tests.
+    Retourne un df_signaux synthétique sans calcul réel.
+    """
+    def generer_signaux(self, prix_a: pd.Series, prix_b: pd.Series) -> pd.DataFrame:
+        n = len(prix_a)
+        index = prix_a.index
+        signaux = [0] * n
+        positions = [0] * n
 
+        signaux[10] = 1
+        positions[10:20] = [1] * 10
+        signaux[30] = -1
+        positions[30:40] = [-1] * 10
 
-# Test 2 : Calcul du z-score
-print("\n--- Test 2 : Calcul du z-score ---")
-
-try:
-    zscore = backtester.calculer_zscore(spread, window=20)
-    print("Test 2 réussi !")
-    print(f"  Shape du z-score : {zscore.shape}")
-    print(f"  Moyenne du z-score : {zscore.mean():.4f}")
-    print(f"  Écart-type du z-score : {zscore.std():.4f}")
-    print(f"  Min/Max : {zscore.min():.4f} / {zscore.max():.4f}")
-    print(f"  Premières valeurs (après warmup) :")
-    print(zscore.iloc[20:25])
-except Exception as e:
-    print(f"Test 2 échoué : {e}")
+        return pd.DataFrame({
+            'zscore': np.random.randn(n),
+            'signal': signaux,
+            'position': positions,
+            'spread': np.random.randn(n),
+            'ratio': [1.2] * n
+        }, index=index)
 
 
-# Test 3 : Génération des signaux
-print("\n--- Test 3 : Génération des signaux ---")
+# ========== TESTS ==========
 
-try:
-    df_signaux = backtester.generer_signaux(zscore)
-    print("Test 3 réussi !")
-    print(f"  Shape des signaux : {df_signaux.shape}")
-    print(f"  Colonnes : {list(df_signaux.columns)}")
-    
-    # Statistiques sur les signaux
-    nb_long = (df_signaux['signal'] == 1).sum()
-    nb_short = (df_signaux['signal'] == -1).sum()
-    nb_neutre = (df_signaux['signal'] == 0).sum()
-    
-    print(f"  Signaux LONG : {nb_long}")
-    print(f"  Signaux SHORT : {nb_short}")
-    print(f"  Signaux NEUTRE : {nb_neutre}")
-    print(f"  Échantillon de signaux :")
-    print(df_signaux[['zscore', 'signal', 'position']].iloc[20:30])
-except Exception as e:
-    print(f"Test 3 échoué : {e}")
+class TestBacktester:
 
+    # ===== FIXTURES =====
 
-# Test 4 : Simulation des trades
-print("\n--- Test 4 : Simulation des trades ---")
+    @pytest.fixture
+    def strategy(self):
+        """Fixture : fausse stratégie sans calcul réel."""
+        return FakeStrategy()
 
-try:
-    df_trades = backtester.simuler_trades(df_signaux, prix_aapl, prix_msft, ratio_couverture)
-    print("Test 4 réussi !")
-    print(f"  Shape des trades : {df_trades.shape}")
-    print(f"  Colonnes : {list(df_trades.columns)}")
-    print(f"  Capital initial : {backtester.capital_initial:.2f} €")
-    print(f"  Capital final : {df_trades['capital'].iloc[-1]:.2f} €")
-    print(f"  PnL cumulé : {df_trades['pnl_cumule'].iloc[-1]:.2f} €")
-    print(f"  Échantillon de trades :")
-    print(df_trades[['position', 'pnl_quotidien', 'pnl_cumule', 'capital']].tail(10))
-except Exception as e:
-    print(f"Test 4 échoué : {e}")
+    @pytest.fixture
+    def backtester(self, strategy):
+        """Fixture : Backtester avec FakeStrategy et capital par défaut."""
+        return Backtester(strategy=strategy, capital_initial=10000.0)
 
+    @pytest.fixture
+    def prix_synthetiques(self):
+        """Fixture : deux séries de prix synthétiques alignées."""
+        np.random.seed(42)
+        dates = pd.date_range('2024-01-01', periods=100, freq='D')
+        prix_a = pd.Series(100 + np.cumsum(np.random.randn(100)), index=dates)
+        prix_b = pd.Series(100 + np.cumsum(np.random.randn(100)), index=dates)
+        return prix_a, prix_b
 
-# Test 5 : Calcul des métriques
-print("\n--- Test 5 : Calcul des métriques de performance ---")
+    @pytest.fixture
+    def df_signaux(self, prix_synthetiques):
+        """Fixture : df_signaux synthétique prêt pour simuler_trades."""
+        prix_a, prix_b = prix_synthetiques
+        strategy = FakeStrategy()
+        return strategy.generer_signaux(prix_a, prix_b)
 
-try:
-    metriques = backtester.calculer_metriques(df_trades)
-    print("Test 5 réussi !")
-    print(f"  Rendement total : {metriques['rendement_total']:.2f} %")
-    print(f"  Sharpe Ratio : {metriques['sharpe_ratio']:.2f}")
-    print(f"  Maximum Drawdown : {metriques['max_drawdown']:.2f} %")
-    print(f"  Win Rate : {metriques['win_rate']:.2f} %")
-    print(f"  Nombre de trades : {metriques['nombre_trades']}")
-except Exception as e:
-    print(f"Test 5 échoué : {e}")
+    @pytest.fixture
+    def df_trades(self, backtester, df_signaux, prix_synthetiques):
+        """Fixture : df_trades prêt pour calculer_metriques."""
+        prix_a, prix_b = prix_synthetiques
+        ratio = df_signaux['ratio'].iloc[0]
+        return backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+
+    # ===== TESTS simuler_trades() =====
+
+    def test_simuler_trades_retourne_dataframe(self, backtester, df_signaux, prix_synthetiques):
+        """simuler_trades() doit retourner un DataFrame."""
+        # ARRANGE
+        prix_a, prix_b = prix_synthetiques
+        ratio = df_signaux['ratio'].iloc[0]
+        # ACT
+        df_trades = backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+        # ASSERT
+        assert isinstance(df_trades, pd.DataFrame)
+
+    def test_simuler_trades_colonnes_presentes(self, backtester, df_signaux, prix_synthetiques):
+        """Le DataFrame retourné doit contenir les colonnes attendues."""
+        # ARRANGE
+        prix_a, prix_b = prix_synthetiques
+        ratio = df_signaux['ratio'].iloc[0]
+        colonnes_attendues = ['position', 'pnl_quotidien', 'pnl_cumule', 'capital']
+        # ACT
+        df_trades = backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+        # ASSERT
+        for colonne in colonnes_attendues:
+            assert colonne in df_trades.columns
+
+    def test_simuler_trades_capital_initial_correct(self, backtester, df_signaux, prix_synthetiques):
+        """La première valeur de capital doit être proche du capital initial."""
+        # ARRANGE
+        prix_a, prix_b = prix_synthetiques
+        ratio = df_signaux['ratio'].iloc[0]
+        # ACT
+        df_trades = backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+        # ASSERT
+        assert df_trades['capital'].iloc[0] == pytest.approx(10000.0, rel=0.01)
+
+    def test_simuler_trades_meme_longueur(self, backtester, df_signaux, prix_synthetiques):
+        """Le DataFrame retourné doit avoir le même nombre de lignes que df_signaux."""
+        # ARRANGE
+        prix_a, prix_b = prix_synthetiques
+        ratio = df_signaux['ratio'].iloc[0]
+        # ACT
+        df_trades = backtester.simuler_trades(df_signaux, prix_a, prix_b, ratio)
+        # ASSERT
+        assert len(df_trades) == len(df_signaux)
+
+    # ===== TESTS calculer_metriques() =====
+
+    def test_calculer_metriques_retourne_dict(self, backtester, df_trades):
+        """calculer_metriques() doit retourner un dictionnaire."""
+        # ACT
+        metriques = backtester.calculer_metriques(df_trades)
+        # ASSERT
+        assert isinstance(metriques, dict)
+
+    def test_calculer_metriques_cles_presentes(self, backtester, df_trades):
+        """Le dictionnaire doit contenir les 5 clés attendues."""
+        # ARRANGE
+        cles_attendues = ['rendement_total', 'sharpe_ratio', 'max_drawdown', 'win_rate', 'nombre_trades']
+        # ACT
+        metriques = backtester.calculer_metriques(df_trades)
+        # ASSERT
+        for cle in cles_attendues:
+            assert cle in metriques
+
+    def test_calculer_metriques_types_corrects(self, backtester, df_trades):
+        """rendement_total, sharpe_ratio, max_drawdown, win_rate doivent être des floats."""
+        # ACT
+        metriques = backtester.calculer_metriques(df_trades)
+        # ASSERT
+        assert isinstance(metriques['rendement_total'], float)
+        assert isinstance(metriques['sharpe_ratio'], float)
+        assert isinstance(metriques['max_drawdown'], float)
+        assert isinstance(metriques['win_rate'], float)
+
+    def test_calculer_metriques_win_rate_entre_0_et_100(self, backtester, df_trades):
+        """Le win_rate doit toujours être compris entre 0 et 100."""
+        # ACT
+        metriques = backtester.calculer_metriques(df_trades)
+        # ASSERT
+        assert 0.0 <= metriques['win_rate'] <= 100.0
+
+    def test_calculer_metriques_max_drawdown_negatif(self, backtester, df_trades):
+        """Le max_drawdown doit être <= 0 (c'est une perte)."""
+        # ACT
+        metriques = backtester.calculer_metriques(df_trades)
+        # ASSERT
+        assert metriques['max_drawdown'] <= 0.0
