@@ -4,6 +4,9 @@ Module base - Configuration de la connexion SQLAlchemy et session DB.
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. DATABASE_URL : lire depuis os.getenv() avec une valeur par défaut
 DATABASE_URL = os.getenv(

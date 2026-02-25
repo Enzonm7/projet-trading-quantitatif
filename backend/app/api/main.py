@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.routes import stocks
 
 
 # --- Création de l'application ---
@@ -43,3 +44,5 @@ def verifier_sante():
         "statut": "ok",
         "timestamp": datetime.utcnow().isoformat()
     }
+
+app.include_router(stocks.router, prefix="/api")
