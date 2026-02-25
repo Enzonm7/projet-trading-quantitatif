@@ -1,0 +1,45 @@
+from datetime import datetime
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+
+# --- Création de l'application ---
+app = FastAPI(
+    title="Pairs Trading API",
+    description="API REST pour la plateforme de trading quantitatif",
+    version="1.0.0"
+)
+
+# --- Configuration CORS ---
+origines_autorisees = [
+    "http://localhost:3000",   # React (Create React App)
+    "http://localhost:5173",   # React (Vite)
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origines_autorisees,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# --- Routes de base ---
+@app.get("/")
+def lire_racine():
+    """Route racine — vérifie que l'API est en ligne."""
+    return {
+        "message": "Pairs Trading API",
+        "version": "1.0.0",
+        "statut": "en ligne"
+    }
+
+
+@app.get("/health")
+def verifier_sante():
+    """Health check — utilisé pour monitoring et tests."""
+    return {
+        "statut": "ok",
+        "timestamp": datetime.utcnow().isoformat()
+    }
