@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import stocks
-
+from app.api.routes import pairs
 
 # --- Création de l'application ---
 app = FastAPI(
@@ -46,3 +46,4 @@ def verifier_sante():
     }
 
 app.include_router(stocks.router, prefix="/api")
+app.include_router(pairs.router, prefix="/api")
