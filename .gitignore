@@ -17,3 +17,6 @@ __pycache__/
 
 # Ignorer la couverture généré par les test unitaires
 .coverage
+
+# Ignorer le fichier requirement avec les bibliothèques nécessaires au dev
+.requirements.txt

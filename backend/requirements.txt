@@ -19,8 +19,8 @@ alembic==1.13.1  # Database migrations
 python-dotenv==1.0.0  # Environment variables
 
 # ===== ML (Phase 3 - Mars 2026) =====
-# scikit-learn==1.3.2
-# xgboost==2.0.3
+scikit-learn==1.6.1
+xgboost==3.1.3
 # tensorflow==2.15.0 # Pour LSTM
 
 # ===== FRONTEND =====
