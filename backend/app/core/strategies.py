@@ -1,6 +1,7 @@
 """Module Strategy pour extraire la logique de génération de signaux dans une interface."""
 
 import pandas as pd
+import numpy as np
 from abc import ABC, abstractmethod
 from scipy import stats
 
@@ -43,12 +44,15 @@ class ZScoreReversionStrategy(Strategy) :
         self.seuil_sortie = seuil_sortie
 
     def generer_signaux(self, prix_a: pd.Series, prix_b: pd.Series) -> pd.DataFrame:
+        # Appliquer la transformation logarithmique
+        log_a = np.log(prix_a)
+        log_b = np.log(prix_b)
         # Calculer le ratio de couverture (Hedge Ratio)
-        pente, intercept = stats.linregress(prix_b, prix_a)[:2]
+        pente, intercept = stats.linregress(log_b, log_a)[:2]
         ratio = pente
 
         # Calculer le Spread
-        spread = prix_a - ratio * prix_b
+        spread = log_a - ratio * log_b
 
         # Calculer le Z-Score
         # Calcul de la moyenne mobile

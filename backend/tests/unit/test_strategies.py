@@ -177,7 +177,7 @@ class TestZScoreReversionStrategy:
     
     
     def test_spread_calcule_correctement(self, strategy, prix_simples):
-        """Vérifie que le spread est bien calculé (Prix_A - ratio * Prix_B)."""
+        """Vérifie que le spread est bien calculé (log(Prix_A) - ratio * log(Prix_B))."""
         
         # ARRANGE
         prix_a, prix_b = prix_simples
@@ -188,7 +188,7 @@ class TestZScoreReversionStrategy:
         # ASSERT
         # Vérifier manuellement le calcul sur la dernière ligne (pas de NaN)
         ratio = df['ratio'].iloc[-1]
-        spread_attendu = prix_a.iloc[-1] - ratio * prix_b.iloc[-1]
+        spread_attendu = np.log( prix_a).iloc[-1] - ratio * np.log(prix_b).iloc[-1]
         spread_obtenu = df['spread'].iloc[-1]
         
         assert abs(spread_attendu - spread_obtenu) < 0.01, \
