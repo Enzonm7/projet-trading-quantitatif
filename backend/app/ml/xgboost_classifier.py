@@ -35,18 +35,54 @@ class XGBoostClassifier:
         else : 
             self.feature_names = None
         # Mise à l'échelle (Standardisation)
-        x_scaled = self.scaler.fit_transform(X)
+        X_scaled = self.scaler.fit_transform(X)
         # Instanciation du modèle avec unpacking du dictionnaire
         self.model = xgb.XGBClassifier(**self.model_config)
         # Entraînement de l'algorithme
-        self.model.fit(x_scaled, y)
+        self.model.fit(X_scaled, y)
         
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """..."""
+        """
+        Prédit la classe (convergence/divergence) pour chaque observation.
+
+        Args:
+            X (np.ndarray | pd.DataFrame): Matrice de features à prédire.
+
+        Returns:
+            np.ndarray: Vecteur de prédictions binaires (1 = convergence, 0 = divergence).
+        """
+        if self.model is None:
+            raise ValueError("Il faut d'abord entraîner le model")
+        # Mise à l'échelle stricte (sans ré-entraînement du scaler)
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """..."""
+        """
+        Prédit les probabilités de chaque classe pour chaque observation.
+
+        Args:
+            X (np.ndarray | pd.DataFrame): Matrice de features à prédire.
+
+        Returns:
+            np.ndarray: Matrice de shape (n_samples, 2) avec les probabilités
+                de divergence (colonne 0) et convergence (colonne 1).
+        """
+        if self.model is None:
+            raise ValueError("Il faut d'abord entraîner le model")
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict_proba(X_scaled)
 
     def get_feature_importance(self) -> pd.Series:
-        """..."""
+        """
+        Retourne l'importance de chaque feature du modèle entraîné.
+
+        Returns:
+            pd.Series: Importances triées par ordre décroissant.
+                L'index contient les noms des features si disponibles,
+                sinon des indices numériques.
+        """
+        if self.model is None:
+            raise ValueError("Le modèle de prédiction n'existe pas. Veuillez lancer .train().")
+        return pd.Series(data=self.model.feature_importances_, index=self.feature_names).sort_values(ascending=False)
