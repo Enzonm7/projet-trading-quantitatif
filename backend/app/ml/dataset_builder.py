@@ -1,7 +1,7 @@
 """Module DatasetBuilder pour la préparation des données ML du pipeline pairs trading."""
 
 import pandas as pd
-from feature_engineer import FeatureEngineer
+from backend.app.ml.feature_engineer import FeatureEngineer
 
 class DatasetBuilder:
     """
