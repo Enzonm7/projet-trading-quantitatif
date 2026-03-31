@@ -11,6 +11,13 @@ class XGBoostClassifier:
     """
 
     def __init__(self, model_config: dict = None):
+        """
+        Initialise le XGBoostClassifier.
+
+        Args:
+            model_config (dict): Configuration du modèle XGBoost
+                (hyperparamètres). Si None, valeurs par défaut.
+        """
         self.model_config = model_config or {
             'n_estimators': 100,
             'max_depth': 4,
