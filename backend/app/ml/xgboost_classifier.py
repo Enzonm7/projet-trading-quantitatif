@@ -5,6 +5,7 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 class XGBoostClassifier:
     """
@@ -126,3 +127,29 @@ class XGBoostClassifier:
         if isinstance(X_train, pd.DataFrame):
             self.feature_names = list(X_train.columns)
         return self.meilleurs_params
+    
+    def evaluer(self, X_test, y_test) -> dict:
+        """Évalue les performances du modèle sur un jeu de test.
+
+        Args:
+            X_test (pd.DataFrame ou np.ndarray): Données de test.
+            y_test (np.ndarray): Labels réels (0 = divergence, 1 = convergence).
+
+        Returns:
+            dict: Dictionnaire contenant les métriques suivantes :
+                - accuracy (float): Taux de bonnes prédictions global.
+                - precision (float): Précision sur la classe positive.
+                - recall (float): Rappel sur la classe positive.
+                - f1 (float): Moyenne harmonique precision/recall.
+                - roc_auc (float): Aire sous la courbe ROC.
+        """
+        y_pred = self.predict(X_test)
+        y_proba = self.predict_proba(X_test)[:, 1]
+        metriques = {
+            "accuracy": accuracy_score(y_test, y_pred),
+            "precision": precision_score(y_test, y_pred, zero_division=0),
+            "recall": recall_score(y_test, y_pred, zero_division=0),
+            "f1": f1_score(y_test, y_pred, zero_division=0),
+            "roc_auc": roc_auc_score(y_test, y_proba)
+        }
+        return metriques

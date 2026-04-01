@@ -216,3 +216,48 @@ class TestXGBoostClassifier:
         clf.optimiser_hyperparametres(X, y)
         # ASSERT
         assert clf.feature_names == ["rsi", "bollinger", "volatilite", "correlation"]
+
+    # ==================== TESTS EVALUER ====================
+
+    def test_evaluer_retourne_dict(self, donnees_tuning):
+        """Vérifie que evaluer() retourne un dictionnaire."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        clf.train(X, y)
+        # ACT
+        metriques = clf.evaluer(X, y)
+        # ASSERT
+        assert isinstance(metriques, dict)
+
+    def test_evaluer_contient_toutes_les_metriques(self, donnees_tuning):
+        """Vérifie que le dictionnaire contient les 5 métriques attendues."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        clf.train(X, y)
+        # ACT
+        metriques = clf.evaluer(X, y)
+        # ASSERT
+        assert set(metriques.keys()) == {"accuracy", "precision", "recall", "f1", "roc_auc"}
+
+    def test_evaluer_valeurs_entre_0_et_1(self, donnees_tuning):
+        """Vérifie que toutes les métriques sont comprises entre 0 et 1."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        clf.train(X, y)
+        # ACT
+        metriques = clf.evaluer(X, y)
+        # ASSERT
+        for nom, valeur in metriques.items():
+            assert 0.0 <= valeur <= 1.0, f"{nom} hors intervalle [0, 1] : {valeur}"
+
+    def test_evaluer_avant_train_leve_exception(self, donnees_tuning):
+        """Vérifie que evaluer() lève une exception si le modèle n'est pas entraîné."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        # ACT / ASSERT
+        with pytest.raises(Exception):
+            clf.evaluer(X, y)
