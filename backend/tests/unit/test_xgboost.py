@@ -148,3 +148,71 @@ class TestXGBoostClassifier:
         # ACT / ASSERT
         with pytest.raises(Exception):
             clf.get_feature_importance()
+
+    # ==================== TESTS OPTIMISER_HYPERPARAMETRES ====================
+
+    @pytest.fixture
+    def donnees_tuning(self):
+        """Fixture : Données synthétiques suffisantes pour TimeSeriesSplit(n_splits=5)."""
+        np.random.seed(42)
+        X = pd.DataFrame(
+            np.random.randn(100, 4),
+            columns=["rsi", "bollinger", "volatilite", "correlation"],
+        )
+        y = np.array([0, 1] * 50)
+        return X, y
+
+    def test_optimiser_retourne_dict(self, donnees_tuning):
+        """Vérifie que optimiser_hyperparametres() retourne un dictionnaire."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        # ACT
+        resultat = clf.optimiser_hyperparametres(X, y)
+        # ASSERT
+        assert isinstance(resultat, dict)
+
+    def test_optimiser_stocke_meilleurs_params(self, donnees_tuning):
+        """Vérifie que self.meilleurs_params est bien renseigné après l'appel."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        # ACT
+        clf.optimiser_hyperparametres(X, y)
+        # ASSERT
+        assert clf.meilleurs_params is not None
+        assert isinstance(clf.meilleurs_params, dict)
+
+    def test_optimiser_modele_peut_predire(self, donnees_tuning):
+        """Vérifie que le modèle ré-entraîné après tuning peut prédire sans erreur."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        # ACT
+        clf.optimiser_hyperparametres(X, y)
+        predictions = clf.predict(X)
+        # ASSERT
+        assert isinstance(predictions, np.ndarray)
+        assert len(predictions) == len(X)
+
+    def test_optimiser_grille_personnalisee(self, donnees_tuning):
+        """Vérifie que optimiser_hyperparametres() accepte une grille personnalisée."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        grille = {"n_estimators": [50], "max_depth": [3]}
+        # ACT
+        resultat = clf.optimiser_hyperparametres(X, y, grille_params=grille)
+        # ASSERT
+        assert resultat["n_estimators"] == 50
+        assert resultat["max_depth"] == 3
+
+    def test_optimiser_sauvegarde_feature_names(self, donnees_tuning):
+        """Vérifie que feature_names est mis à jour après optimisation sur un DataFrame."""
+        # ARRANGE
+        X, y = donnees_tuning
+        clf = XGBoostClassifier()
+        # ACT
+        clf.optimiser_hyperparametres(X, y)
+        # ASSERT
+        assert clf.feature_names == ["rsi", "bollinger", "volatilite", "correlation"]
