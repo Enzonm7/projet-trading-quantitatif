@@ -108,20 +108,27 @@ class XGBoostClassifier:
         Returns:
             dict: Les meilleurs hyperparamètres trouvés par GridSearchCV.
         """
+        # 1. Définition de la grille par défaut
         grille_params = grille_params or {
             "n_estimators": [100, 200],
             "max_depth": [3, 5],
             "learning_rate": [0.05, 0.1],
             "subsample": [0.8, 1.0]
         }
+        # 2. Mise à l'échelle des données
         X_scalled = self.scaler.fit_transform(X_train)
+        # 3. Création de la validation croisée temporelle
         tscv = TimeSeriesSplit(n_splits=5)
+        # 4. Configuration du GridSearchCV
         grid_search = GridSearchCV(
             estimator=xgb.XGBClassifier(random_state=42),
             param_grid=grille_params,cv=tscv, scoring='f1'
         )
+        # 5. Lancement de la recherche
         grid_search.fit(X_scalled, y_train)
+        # 6. Stockage des meilleurs hyperparamètres
         self.meilleurs_params = grid_search.best_params_
+        # 7. Ré-entraînement du modèle final sur tout X_train avec ces paramètres
         self.model = xgb.XGBClassifier(**self.meilleurs_params, random_state=42)
         self.model.fit(X_scalled, y_train)
         if isinstance(X_train, pd.DataFrame):
@@ -143,8 +150,11 @@ class XGBoostClassifier:
                 - f1 (float): Moyenne harmonique precision/recall.
                 - roc_auc (float): Aire sous la courbe ROC.
         """
+        # 1. Prédictions binaires (les 0 et les 1)
         y_pred = self.predict(X_test)
+        # 2. Prédictions probabilistes (de 0.0 à 1.0)
         y_proba = self.predict_proba(X_test)[:, 1]
+        # 3. Calcul des métriques
         metriques = {
             "accuracy": accuracy_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred, zero_division=0),
