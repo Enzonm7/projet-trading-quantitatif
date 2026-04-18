@@ -31,8 +31,7 @@ class XGBoostClassifier:
         self.feature_names = None
 
     def train(self, X: np.ndarray, y: np.ndarray) -> None:
-        """
-        Entraîne le modèle XGBoost sur les données fournies.
+        """Entraîne le modèle XGBoost sur les données fournies.
 
         Args:
             X (np.ndarray | pd.DataFrame): Matrice de features d'entraînement.
@@ -52,8 +51,7 @@ class XGBoostClassifier:
         
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Prédit la classe (convergence/divergence) pour chaque observation.
+        """Prédit la classe (convergence/divergence) pour chaque observation.
 
         Args:
             X (np.ndarray | pd.DataFrame): Matrice de features à prédire.
@@ -68,8 +66,7 @@ class XGBoostClassifier:
         return self.model.predict(X_scaled)
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """
-        Prédit les probabilités de chaque classe pour chaque observation.
+        """Prédit les probabilités de chaque classe pour chaque observation.
 
         Args:
             X (np.ndarray | pd.DataFrame): Matrice de features à prédire.
@@ -84,8 +81,7 @@ class XGBoostClassifier:
         return self.model.predict_proba(X_scaled)
 
     def get_feature_importance(self) -> pd.Series:
-        """
-        Retourne l'importance de chaque feature du modèle entraîné.
+        """Retourne l'importance de chaque feature du modèle entraîné.
 
         Returns:
             pd.Series: Importances triées par ordre décroissant.
