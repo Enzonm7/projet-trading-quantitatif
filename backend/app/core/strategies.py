@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from abc import ABC, abstractmethod
 from scipy import stats
+from backend.app.ml.xgboost_classifier import XGBoostClassifier
+from backend.app.ml.feature_engineer import FeatureEngineer
 
 class Strategy(ABC) :
     """
@@ -96,4 +98,66 @@ class ZScoreReversionStrategy(Strategy) :
         df_signaux['ratio'] = ratio
         
         return df_signaux
+    
+class MLEnhancedStrategy(Strategy):
+    """
+    Stratégie Z-Score filtrée par les prédictions XGBoost.
+    N'entre en position que si XGBoost confirme la convergence.
+    """
+
+    def __init__(self, strategie_base: ZScoreReversionStrategy,
+                 classificateur: XGBoostClassifier,
+                 feature_engineer: FeatureEngineer):
+        """
+        Args:
+            strategie_base (ZScoreReversionStrategy): Stratégie classique
+                pour la génération des signaux initiaux.
+            classificateur (XGBoostClassifier): Modèle entraîné pour
+                filtrer les signaux.
+            feature_engineer (FeatureEngineer): Pour créer les features
+                nécessaires aux prédictions.
+        """
+        self.strategie_base = strategie_base
+        self.classificateur = classificateur
+        self.feature_engineer = feature_engineer
+
+    def generer_signaux(self, prix_a: pd.Series, prix_b: pd.Series) -> pd.DataFrame:
+        # 1. Signaux classiques
+        df_signaux = self.strategie_base.generer_signaux(prix_a, prix_b)
         
+        # 2. Préparer df pour create_ml_features (besoin de 'Close', 'spread', 'zscore')
+        df_features = df_signaux.copy()
+        df_features['Close'] = prix_a.values  # prix_a comme proxy pour Close
+        
+        # 3. Créer les features ML
+        df_features = self.feature_engineer.create_ml_features(df_features)
+        
+        # 4. Prédire la convergence (1=convergence, 0=divergence)
+        colonnes_features = self.classificateur.feature_names
+        predictions = self.classificateur.predict(df_features[colonnes_features])
+        
+        # 5. Aligner les indices (create_ml_features dropna → index peut être réduit)
+        df_signaux = df_signaux.loc[df_features.index].copy()
+        
+        # 6. Annuler les signaux où XGBoost prédit divergence
+        df_signaux.loc[predictions == 0, 'signal'] = 0
+        
+        # 7. Recalculer les positions avec la même logique
+        positions = []
+        position_actuelle = 0
+
+        for i in range(len(df_signaux)):
+            signal_courant = df_signaux['signal'].iloc[i]
+            zscore_courant = df_signaux['zscore'].iloc[i]
+
+            if signal_courant != 0:
+                position_actuelle = signal_courant
+            elif position_actuelle != 0:
+                if abs(zscore_courant) < self.strategie_base.seuil_sortie:
+                    position_actuelle = 0
+
+            positions.append(position_actuelle)
+
+        df_signaux['position'] = positions
+
+        return df_signaux
