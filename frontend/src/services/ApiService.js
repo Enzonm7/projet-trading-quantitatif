@@ -21,6 +21,16 @@ const ApiService = {
 
   // Health
   verifierSante: () => api.get('/health'),
+
+  // Backtest
+  lancerBacktest: (ticker_a, ticker_b, dateDebut, dateFin, capitalInitial) =>
+    api.post('/api/pairs/backtest', {
+      ticker_a,
+      ticker_b,
+      date_debut: dateDebut,
+      date_fin: dateFin,
+      capital_initial: capitalInitial,
+    }),
 }
 
 export default ApiService
