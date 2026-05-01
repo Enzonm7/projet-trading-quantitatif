@@ -31,6 +31,13 @@ const ApiService = {
       date_fin: dateFin,
       capital_initial: capitalInitial,
     }),
+
+  // ML
+  obtenirMetriquesXGBoost: (ticker_a, ticker_b, dateDebut, dateFin) =>
+    api.post('/api/ml/xgboost/metrics', { ticker_a, ticker_b, start_date: dateDebut, end_date: dateFin }),
+
+  comparerStrategies: (ticker_a, ticker_b, dateDebut, dateFin) =>
+    api.post('/api/ml/comparison', { ticker_a, ticker_b, start_date: dateDebut, end_date: dateFin }),
 }
 
 export default ApiService

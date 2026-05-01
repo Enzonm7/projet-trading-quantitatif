@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Exploration from './pages/Exploration'
 import Backtest from './pages/Backtest'
 import Performance from './pages/Performance'
+import MLInsights from './pages/MLInsights'
 
 function App() {
   return (
@@ -13,7 +14,7 @@ function App() {
         <Route path="/exploration" element={<Exploration />} />
         <Route path="/backtest" element={<Backtest />} />
         <Route path="/performance" element={<Performance />} />
-        <Route path="/ml-insights" element={<div className="text-2xl font-bold">ML Insights (à venir)</div>} />
+        <Route path="/ml-insights" element={<MLInsights />} />
       </Routes>
     </Layout>
   )
