@@ -1,19 +1,40 @@
 const variantes = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700',
-  secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
+  primary: {
+    background: 'var(--accent)',
+    color: '#0a0b0f',
+    border: 'none',
+  },
+  secondary: {
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    border: '1px solid var(--border)',
+  },
+  danger: {
+    background: 'var(--red-dim)',
+    color: 'var(--red)',
+    border: '1px solid var(--red)',
+  },
 }
 
-function Button({ children, onClick, variante = 'primary', disabled = false, className = '' }) {
+function Button({ children, onClick, variante = 'primary', disabled = false, className = '', style = {} }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`
-        px-4 py-2 rounded-md text-sm font-medium transition-colors
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${variantes[variante]} ${className}
-      `}
+      className={className}
+      style={{
+        ...variantes[variante],
+        padding: '8px 16px',
+        borderRadius: 'var(--radius-sm)',
+        fontSize: '11px',
+        fontWeight: 600,
+        fontFamily: 'var(--font-mono)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        transition: 'opacity 0.15s',
+        whiteSpace: 'nowrap',
+        ...style,
+      }}
     >
       {children}
     </button>

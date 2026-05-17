@@ -1,6 +1,15 @@
-function Card({ children, className = '' }) {
+function Card({ children, className = '', style = {} }) {
   return (
-    <div className={`bg-white rounded-lg border border-slate-200 p-4 ${className}`}>
+    <div
+      className={className}
+      style={{
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '16px',
+        ...style,
+      }}
+    >
       {children}
     </div>
   )

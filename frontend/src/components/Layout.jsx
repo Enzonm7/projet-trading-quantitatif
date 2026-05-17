@@ -3,11 +3,16 @@ import Sidebar from './Sidebar'
 
 function Layout({ children }) {
   return (
-    <div className="flex flex-col h-screen">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)' }}>
       <Header />
-      <div className="flex flex-1 overflow-hidden">
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-slate-100 p-6">
+        <main style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px',
+          background: 'var(--bg-primary)',
+        }}>
           {children}
         </main>
       </div>

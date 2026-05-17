@@ -12,19 +12,23 @@ function Exploration() {
   const [chargement, setChargement] = useState(false)
   const [paires, setPaires]       = useState([])
   const [erreur, setErreur]       = useState(null)
+  const [aLance, setALance] = useState(false)
 
   const lancerDetection = async () => {
     setChargement(true)
     setErreur(null)
     setPaires([])
+    setALance(false)          
     try {
       const listeTickers = tickers.split(',').map((t) => t.trim())
       const reponse = await ApiService.detecterPaires(listeTickers, dateDebut, dateFin)
+      console.log(reponse.data)
       setPaires(reponse.data.paires)
     } catch {
       setErreur("Erreur lors de la détection. Vérifie que l'API est démarrée.")
     } finally {
       setChargement(false)
+      setALance(true)         
     }
   }
 
@@ -58,10 +62,17 @@ function Exploration() {
         <ErreurMsg message={erreur} />
       </Card>
 
-      {paires.length > 0 && (
+      {aLance && (
         <Card>
-          <SectionTitle>Résultats — {paires.length} paire(s) détectée(s)</SectionTitle>
-          <PairsList paires={paires} dateDebut={dateDebut} dateFin={dateFin} />
+          <SectionTitle>
+            Résultats — {paires.length} paire(s) détectée(s)
+          </SectionTitle>
+          {paires.length === 0
+            ? <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Aucune paire cointégrée détectée sur cette période. Essaie d'autres tickers ou une période plus longue.
+              </p>
+            : <PairsList paires={paires} dateDebut={dateDebut} dateFin={dateFin} />
+          }
         </Card>
       )}
     </div>
