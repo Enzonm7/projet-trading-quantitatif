@@ -8,6 +8,7 @@ from backend.app.core.data_source import DataSource
 from backend.app.core.pairs_selector import PairsSelector
 from backend.app.core.backtester import Backtester
 from backend.app.core.risk_manager import RiskManager
+from backend.app.core.strategies import MLEnhancedStrategy
 from pathlib import Path
 from typing import Dict, Any
 
@@ -235,3 +236,43 @@ class TradingPipeline:
         print(f"  Profit/Perte : {capital_final - capital_initial:.2f} €")
         
         print("\n" + "=" * 70)
+
+    
+    def comparer_strategies(self, ticker_a: str, ticker_b: str,
+                            start_date: str, end_date: str,
+                            strategie_ml: MLEnhancedStrategy) -> dict:
+        """
+        Compare les performances de la stratégie classique et ML-Enhanced.
+
+        Args:
+            ticker_a (str): Premier ticker.
+            ticker_b (str): Second ticker.
+            start_date (str): Date de début 'YYYY-MM-DD'.
+            end_date (str): Date de fin 'YYYY-MM-DD'.
+            strategie_ml (MLEnhancedStrategy): Stratégie ML instanciée et
+                dont le classificateur est déjà entraîné.
+
+        Returns:
+            dict: Dictionnaire avec les clés :
+                - 'classique' : dict de métriques (sharpe, rendement, drawdown, win_rate)
+                - 'ml_enhanced' : dict de métriques (mêmes clés)
+                - 'amelioration_sharpe' : float (différence de Sharpe ratio)
+        """
+        # 1. Télécharger les données une seule fois
+        donnees = self.fetcher.download_pair(ticker_a, ticker_b, start_date, end_date)
+        prix_a = donnees[f'Close_{ticker_a}']
+        prix_b = donnees[f'Close_{ticker_b}']
+
+        # 2. Backtest classique (self.backtester a déjà la strategie_base injectée)
+        resultats_classique = self.backtester.executer_backtest(prix_a, prix_b)
+
+        # 3. Backtest ML (Backtester temporaire avec strategie_ml)
+        backtester_ml = Backtester(strategy=strategie_ml, capital_initial=self.backtester.capital_initial)
+        resultats_ml = backtester_ml.executer_backtest(prix_a, prix_b)
+
+        # 4. Construire et retourner le dictionnaire de comparaison
+        return {
+            'classique': resultats_classique['metriques'],
+            'ml_enhanced': resultats_ml['metriques'],
+            'amelioration_sharpe': round(resultats_ml['metriques']['sharpe_ratio'] - resultats_classique['metriques']['sharpe_ratio'], 2)
+        }

@@ -1,8 +1,9 @@
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import stocks
-from app.api.routes import pairs
+from backend.app.api.routes import stocks
+from backend.app.api.routes import pairs
+from backend.app.api.routes import ml
 
 # --- Création de l'application ---
 app = FastAPI(
@@ -15,6 +16,7 @@ app = FastAPI(
 origines_autorisees = [
     "http://localhost:3000",   # React (Create React App)
     "http://localhost:5173",   # React (Vite)
+    "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
@@ -47,3 +49,4 @@ def verifier_sante():
 
 app.include_router(stocks.router, prefix="/api")
 app.include_router(pairs.router, prefix="/api")
+app.include_router(ml.router, prefix="/api")

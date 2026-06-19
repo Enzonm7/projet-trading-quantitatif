@@ -5,10 +5,10 @@ from pydantic import BaseModel, Field
 from typing import List
 from sqlalchemy.orm import Session
 import pandas as pd
-from app.database.base import get_db
-from app.core.data_fetcher import DataFetcher
-from app.core.pairs_selector import PairsSelector
-from app.core.data_source import YahooFinanceSource
+from backend.app.database.base import get_db
+from backend.app.core.data_fetcher import DataFetcher
+from backend.app.core.pairs_selector import PairsSelector
+from backend.app.core.data_source import YahooFinanceSource
 
 router = APIRouter(tags=["pairs"])
 
@@ -37,6 +37,23 @@ class DetectPairsResponse(BaseModel):
     nombre_paires: int
     paires: List[PaireResultat]
 
+class BacktestRequest(BaseModel):
+    """Corps de la requête pour lancer un backtest."""
+    ticker_a: str
+    ticker_b: str
+    date_debut: str = Field(default="2020-01-01")
+    date_fin: str = Field(default="2024-01-01")
+    capital_initial: float = Field(default=10000.0, gt=0)
+
+class BacktestResponse(BaseModel):
+    """Réponse du backtest."""
+    ticker_a: str
+    ticker_b: str
+    est_cointegree: bool
+    p_valeur: float
+    metriques: dict
+    equity_curve: list
+    trades: list
 
 # --- Route ---
 
@@ -112,3 +129,51 @@ def detecter_paires(
         nombre_paires=len(resultats),
         paires=resultats
     )
+
+@router.post("/pairs/backtest", response_model=BacktestResponse)
+def lancer_backtest(requete: BacktestRequest):
+    """Lance un backtest complet sur une paire."""
+    try:
+        from backend.app.core.backtester import Backtester
+        from backend.app.core.strategies import ZScoreReversionStrategy
+        from backend.app.core.pairs_selector import PairsSelector
+
+        fetcher = DataFetcher(source=YahooFinanceSource())
+        donnees = fetcher.download_pair(
+            requete.ticker_a, requete.ticker_b,
+            requete.date_debut, requete.date_fin
+        )
+        prix_a = donnees[f'Close_{requete.ticker_a}']
+        prix_b = donnees[f'Close_{requete.ticker_b}']
+
+        selecteur = PairsSelector()
+        est_cointegree, p_valeur = selecteur.test_cointegration(prix_a, prix_b)
+
+        strategie = ZScoreReversionStrategy()
+        backtester = Backtester(strategy=strategie, capital_initial=requete.capital_initial)
+        resultats = backtester.executer_backtest(prix_a, prix_b)
+
+        equity_curve = [
+            {'date': str(date.date()), 'capital': round(capital, 2)}
+            for date, capital in resultats['df_trades']['capital'].items()
+        ]
+        # Trades — uniquement les jours avec changement de position
+        df_t = resultats['df_trades']
+        changements = df_t[df_t['position'] != df_t['position'].shift(1)]
+        trades = [
+            {'date': str(date.date()), 'pnl': round(row['pnl_quotidien'], 2), 'position': int(row['position'])}
+            for date, row in changements.iterrows()
+        ]
+
+        return BacktestResponse(
+            ticker_a=requete.ticker_a,
+            ticker_b=requete.ticker_b,
+            est_cointegree=est_cointegree,
+            p_valeur=round(p_valeur, 4),
+            metriques=resultats['metriques'],
+            equity_curve=equity_curve,
+            trades=trades
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
