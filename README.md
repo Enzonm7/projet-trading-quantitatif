@@ -99,7 +99,7 @@ This design choice is deliberate: it keeps the statistically interpretable core 
 - **Recharts** for equity curves, spread/z-score visualization, and feature importance charts.
 - **`ApiService`** centralizes all HTTP calls to the backend.
 
-> *Architecture diagrams (backend class diagram, frontend component diagram, Gantt chart) are available in [`/docs`](./docs) — insert your exported PNGs there and reference them here, e.g. `![Backend architecture](./docs/backend_class_diagram.png)`.*
+> *Architecture diagrams (backend class diagram, frontend component diagram) are available in [`/docs`](./docs) — insert your exported PNGs there and reference them here, e.g. `![Backend architecture](./docs/backend_class_diagram.png)`.*
 
 ---
 
