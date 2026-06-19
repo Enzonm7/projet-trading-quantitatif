@@ -1,0 +1,126 @@
+classDiagram
+    class App {
+        <<Router>>
+        +render() JSX
+    }
+    class PairProvider {
+        <<Context>>
+        -paireSelectionnee: object
+        +setPaireSelectionnee(value) void
+    }
+    App --> PairProvider : wraps
+    App --> Dashboard : routes "/"
+    App --> Exploration : routes "/exploration"
+    App --> Backtest : routes "/backtest"
+    App --> Performance : routes "/performance"
+    App --> MLInsights : routes "/ml-insights"
+
+    class Layout {
+        <<Component>>
+    }
+    class Header {
+        <<Component>>
+        -apiOk: bool
+        -heure: str
+    }
+    class Sidebar {
+        <<Component>>
+    }
+    Layout --> Header : renders
+    Layout --> Sidebar : renders
+    Header --> ApiService : verifierSante()
+
+    class Dashboard {
+        <<Page>>
+        -donneesEquity: array
+        -pairesDemo: array
+    }
+
+    class Exploration {
+        <<Page>>
+        -tickers: str
+        -dateDebut: str
+        -dateFin: str
+        -paires: array
+        -aLance: bool
+        +lancerDetection() void
+    }
+    Exploration --> ApiService : detecterPaires()
+    Exploration --> PairsList : renders
+
+    class Backtest {
+        <<Page>>
+        -tickerA: str
+        -tickerB: str
+        -capital: float
+        -resultats: object
+        +lancerBacktest() void
+    }
+    Backtest --> PairProvider : reads/writes
+    Backtest --> ApiService : lancerBacktest()
+
+    class Performance {
+        <<Page>>
+        -resultats: object
+        +lancerAnalyse() void
+    }
+    Performance --> PairProvider : reads/writes
+    Performance --> ApiService : lancerBacktest()
+
+    class MLInsights {
+        <<Page>>
+        -metriquesML: object
+        -comparaison: object
+        +lancerAnalyse() void
+    }
+    MLInsights --> PairProvider : reads/writes
+    MLInsights --> ApiService : obtenirMetriquesXGBoost(), comparerStrategies()
+
+    class PairsList {
+        <<Component>>
+        +paires: array
+        +dateDebut: str
+        +dateFin: str
+        +selectionnerPaire(paire) void
+    }
+    PairsList --> PairProvider : writes on select
+
+    class UIKit {
+        <<UI Kit>>
+        +PageTitle(titre, sous)
+        +SectionTitle(children)
+        +MetricCard(label, valeur, detail, couleur)
+        +Badge(children, variante)
+        +FormGrid(children, cols)
+        +InputGroup(label, children)
+        +ErreurMsg(message)
+    }
+    class Card {
+        <<Component>>
+    }
+    class Button {
+        <<Component>>
+    }
+
+    class ApiService {
+        <<Service>>
+        +obtenirDonneesAction(ticker) Promise
+        +detecterPaires(tickers, dateDebut, dateFin) Promise
+        +lancerBacktest(ticker_a, ticker_b, dateDebut, dateFin, capital) Promise
+        +obtenirMetriquesXGBoost(ticker_a, ticker_b, dateDebut, dateFin) Promise
+        +comparerStrategies(ticker_a, ticker_b, dateDebut, dateFin) Promise
+        +verifierSante() Promise
+    }
+
+    Dashboard ..> Card : uses
+    Dashboard ..> UIKit : uses
+    Exploration ..> Card : uses
+    Exploration ..> Button : uses
+    Exploration ..> UIKit : uses
+    Backtest ..> Card : uses
+    Backtest ..> Button : uses
+    Backtest ..> UIKit : uses
+    Performance ..> Card : uses
+    Performance ..> UIKit : uses
+    MLInsights ..> Card : uses
+    MLInsights ..> UIKit : uses

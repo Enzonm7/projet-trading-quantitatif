@@ -1,0 +1,179 @@
+classDiagram
+    %% ===== Data layer =====
+    class DataSource {
+        <<abstract>>
+        +telecharger(ticker, start_date, end_date) DataFrame
+    }
+    class YahooFinanceSource {
+        +telecharger(ticker, start_date, end_date) DataFrame
+    }
+    class CSVDataSource {
+        -chemin_csv: str
+        +telecharger(ticker, start_date, end_date) DataFrame
+    }
+    DataSource <|-- YahooFinanceSource
+    DataSource <|-- CSVDataSource
+
+    class DataFetcher {
+        -source: DataSource
+        -cache_dir: Path
+        +download_pair(ticker_a, ticker_b, start_date, end_date) DataFrame
+        +get_cached_data(ticker, start_date, end_date) DataFrame
+    }
+    DataFetcher --> DataSource : uses
+
+    class PairsSelector {
+        -correlation_threshold: float
+        -pvalue_threshold: float
+        +calculate_correlation(data) DataFrame
+        +test_cointegration(series_a, series_b) Tuple
+        +find_all_pairs(tickers) List
+        +filter_valid_pairs(pairs) List
+    }
+
+    %% ===== Strategy layer =====
+    class Strategy {
+        <<abstract>>
+        +generer_signaux(prix_a, prix_b) DataFrame
+    }
+    class ZScoreReversionStrategy {
+        -fenetre: int
+        -seuil_entree: float
+        -seuil_sortie: float
+        +generer_signaux(prix_a, prix_b) DataFrame
+    }
+    class MLEnhancedStrategy {
+        -strategie_base: ZScoreReversionStrategy
+        -classificateur: XGBoostClassifier
+        -feature_engineer: FeatureEngineer
+        +generer_signaux(prix_a, prix_b) DataFrame
+    }
+    Strategy <|-- ZScoreReversionStrategy
+    Strategy <|-- MLEnhancedStrategy
+    MLEnhancedStrategy --> ZScoreReversionStrategy : wraps
+    MLEnhancedStrategy --> XGBoostClassifier : uses
+    MLEnhancedStrategy --> FeatureEngineer : uses
+
+    %% ===== Execution layer =====
+    class Backtester {
+        -strategy: Strategy
+        -capital_initial: float
+        +executer_backtest(prix_a, prix_b) Dict
+        +simuler_trades(df_signaux, prix_a, prix_b, ratio) DataFrame
+        +calculer_metriques(df_trades) Dict
+    }
+    Backtester --> Strategy : delegates to
+
+    class RiskManager {
+        -max_position_size: float
+        -stop_loss_pct: float
+        -max_leverage: float
+        +calculer_taille_position(capital, volatilite) float
+        +verifier_stop_loss(capital_initial, capital_actuel) Tuple
+        +verifier_stop_loss_position(prix_entree, prix_actuel, type_position) bool
+        +ajuster_leverage(ratio_sharpe, capital) float
+        +appliquer_gestion_risque(df_trades, capital_initial, prix_a, prix_b) DataFrame
+        +calculer_metriques_risque(df_trades, capital_initial) Dict
+    }
+
+    %% ===== ML layer =====
+    class FeatureEngineer {
+        -feature_config: dict
+        +calculate_technical_indicators(df) DataFrame
+        +calculate_volatility(prix, fenetre) Series
+        +calculate_rolling_correlation(a, b, fenetre) Series
+        +create_ml_features(df) DataFrame
+    }
+    class DatasetBuilder {
+        -feature_engineer: FeatureEngineer
+        -horizon: int
+        +labelliser_convergence(df) DataFrame
+        +splitter_temporel(df) Tuple
+        +preparer_dataset(df) Tuple
+    }
+    DatasetBuilder --> FeatureEngineer : uses
+
+    class XGBoostClassifier {
+        -model: XGBClassifier
+        -scaler: StandardScaler
+        -feature_names: List
+        +train(X, y) void
+        +predict(X) ndarray
+        +predict_proba(X) ndarray
+        +get_feature_importance() Series
+        +optimiser_hyperparametres(X_train, y_train) dict
+        +evaluer(X_test, y_test) dict
+    }
+
+    %% ===== Orchestration =====
+    class TradingPipeline {
+        -fetcher: DataFetcher
+        -selector: PairsSelector
+        -backtester: Backtester
+        -risk_manager: RiskManager
+        +executer_backtest(ticker_a, ticker_b, start_date, end_date) Dict
+        +analyser_univers(tickers, start_date, end_date) List
+        +comparer_strategies(ticker_a, ticker_b, start_date, end_date, strategie_ml) Dict
+        +sauvegarder_resultats(resultats, dossier) void
+        +generer_rapport(resultats) void
+    }
+    TradingPipeline --> DataFetcher
+    TradingPipeline --> PairsSelector
+    TradingPipeline --> Backtester
+    TradingPipeline --> RiskManager
+
+    %% ===== API layer =====
+    class FastAPIApp {
+        <<Router>>
+        +GET /health
+        +GET /api/stocks/:ticker
+        +POST /api/pairs/detect
+        +POST /api/pairs/backtest
+        +POST /api/ml/comparison
+        +POST /api/ml/xgboost/metrics
+    }
+    FastAPIApp --> DataFetcher : calls
+    FastAPIApp --> PairsSelector : calls
+    FastAPIApp --> Backtester : calls
+    FastAPIApp --> ZScoreReversionStrategy : calls
+    FastAPIApp --> XGBoostClassifier : calls
+    FastAPIApp --> DatasetBuilder : calls
+    FastAPIApp --> OHLCVData : persists
+
+    %% ===== Persistence layer =====
+    class OHLCVData {
+        <<ORM>>
+        +ticker: str
+        +date: Date
+        +open: float
+        +high: float
+        +low: float
+        +close: float
+        +volume: BigInteger
+    }
+    class Pair {
+        <<ORM>>
+        +ticker_a: str
+        +ticker_b: str
+        +correlation: float
+        +p_valeur: float
+        +ratio_couverture: float
+        +est_cointegree: bool
+    }
+    class Backtest {
+        <<ORM>>
+        +start_date: Date
+        +end_date: Date
+        +sharpe_ratio: float
+        +max_drawdown: float
+        +win_rate: float
+    }
+    class Trade {
+        <<ORM>>
+        +date: Date
+        +position: int
+        +pnl_quotidien: float
+        +capital: float
+    }
+    Pair "1" --> "0..*" Backtest
+    Backtest "1" --> "0..*" Trade
