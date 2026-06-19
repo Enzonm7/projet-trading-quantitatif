@@ -5,10 +5,10 @@ from pydantic import BaseModel, Field
 from typing import List
 from sqlalchemy.orm import Session
 import pandas as pd
-from app.database.base import get_db
-from app.core.data_fetcher import DataFetcher
-from app.core.pairs_selector import PairsSelector
-from app.core.data_source import YahooFinanceSource
+from backend.app.database.base import get_db
+from backend.app.core.data_fetcher import DataFetcher
+from backend.app.core.pairs_selector import PairsSelector
+from backend.app.core.data_source import YahooFinanceSource
 
 router = APIRouter(tags=["pairs"])
 
@@ -134,9 +134,9 @@ def detecter_paires(
 def lancer_backtest(requete: BacktestRequest):
     """Lance un backtest complet sur une paire."""
     try:
-        from app.core.backtester import Backtester
-        from app.core.strategies import ZScoreReversionStrategy
-        from app.core.pairs_selector import PairsSelector
+        from backend.app.core.backtester import Backtester
+        from backend.app.core.strategies import ZScoreReversionStrategy
+        from backend.app.core.pairs_selector import PairsSelector
 
         fetcher = DataFetcher(source=YahooFinanceSource())
         donnees = fetcher.download_pair(

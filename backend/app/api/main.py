@@ -1,9 +1,9 @@
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import stocks
-from app.api.routes import pairs
-from app.api.routes import ml
+from backend.app.api.routes import stocks
+from backend.app.api.routes import pairs
+from backend.app.api.routes import ml
 
 # --- Création de l'application ---
 app = FastAPI(

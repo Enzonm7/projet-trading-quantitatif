@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database.base import get_db
-from app.database.models import OHLCVData
-from app.core.data_fetcher import DataFetcher
-from app.core.data_source import YahooFinanceSource
+from backend.app.database.base import get_db
+from backend.app.database.models import OHLCVData
+from backend.app.core.data_fetcher import DataFetcher
+from backend.app.core.data_source import YahooFinanceSource
 
 router = APIRouter()
 
