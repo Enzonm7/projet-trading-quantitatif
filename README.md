@@ -282,5 +282,6 @@ What's explicitly out of scope at this stage:
 
 Developed by **Enzo NZENGUE MAYILA** as part of the *Licence Sciences du Numérique* at Catholic University of Lille (October 2025 – May 2026), supervised with monthly sprint reviews and a final oral defense.
 
-<!-- TODO: add contact / LinkedIn / GitHub links -->
-<!-- TODO: decide on a license (MIT is the common default for portfolio projects; confirm this is consistent with your school's policy on academic project ownership before adding a LICENSE file) -->
+[LinkedIn](https://www.linkedin.com/in/enzo-nzengue-mayila-61912229a/) 
+
+**License:** All rights reserved. This code is shared publicly for portfolio and academic evaluation purposes only — no reuse, redistribution, or modification is permitted without explicit permission from the author.
